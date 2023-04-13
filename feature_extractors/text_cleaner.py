@@ -6,9 +6,10 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 
-import utils
+from utils import utils
 
-if not utils.disable_lemmatizer:
+disable_lemmatizer = bool(eval(utils.settings['RUN']['disable_lemmatizer']))
+if not disable_lemmatizer:
     lemmatizer = WordNetLemmatizer()
     stemmer = PorterStemmer()
 
@@ -27,7 +28,7 @@ def preprocess_text(input_text):
         cleantext = re.sub('[0-9]+', '', cleantext)  # remove numbers
         # print(f'Cleaned text {cleantext}')
 
-    if not utils.disable_lemmatizer:
+    if not disable_lemmatizer:
         tokenizer = RegexpTokenizer(r'\w+')
         tokens = tokenizer.tokenize(cleantext)
         filtered_words = [w for w in tokens if len(w) > 2 if not w in stopwords.words('english')]

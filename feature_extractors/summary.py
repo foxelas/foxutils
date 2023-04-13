@@ -1,18 +1,20 @@
 from transformers import AutoTokenizer, PegasusForConditionalGeneration
 
-import utils
+from utils import utils
 
 device = utils.device
 
+
 def get_model_and_tokenizer():
+    model_name = utils.settings['MODELS']['summary_model']
     # summary_tokenizer = AutoTokenizer.from_pretrained(utils.summary_model)
     # summary_model = AutoModelForSeq2SeqLM.from_pretrained(utils.summary_model).to(device)
-    summary_tokenizer = AutoTokenizer.from_pretrained(utils.summary_model)
-    summary_model = PegasusForConditionalGeneration.from_pretrained(utils.summary_model).to(device)
+    summary_tokenizer = AutoTokenizer.from_pretrained(model_name)
+    summary_model = PegasusForConditionalGeneration.from_pretrained(model_name).to(device)
     return summary_tokenizer, summary_model
 
 
-def get_summary(text,summary_tokenizer, summary_model):
+def get_summary(text, summary_tokenizer, summary_model):
     inputs = summary_tokenizer([text], truncation=True, padding="longest", return_tensors="pt").to(
         device)
     summary_ids = summary_model.generate(inputs["input_ids"])

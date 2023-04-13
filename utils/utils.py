@@ -1,17 +1,16 @@
+import configparser
+import gzip
+import json
+import tarfile
+from datetime import datetime
+from os import listdir, remove
 from os.path import join as pathjoin
 from os.path import normpath, isfile
-from os import listdir, remove
-import configparser
 from sys import getsizeof
-import json
+
 import h5py
 import pandas as pd
-import gzip
-import tarfile
 import torch
-
-from os import getcwd
-from datetime import datetime, date, timedelta
 
 ###########################################################
 # The filename of the settings file
@@ -22,22 +21,11 @@ settings_filename = 'config.ini'
 def read_config():
     config = configparser.ConfigParser()
     config.read(settings_filename)
-    #print(getcwd())
-    #print(config.sections())
+    # print({section: dict(config[section]) for section in config.sections()})
     return config
 
 
 settings = read_config()
-
-lookback_window = int(settings['RUN']['lookback_window'])
-use_description = bool(eval(settings['RUN']['use_description']))
-fixed_length_historical_sentiments = int(settings['RUN']['fixed_length_historical_sentiments'])
-default_value_sentiment = float(settings['RUN']['default_value_sentiment'])
-target_features_value = settings['RUN']['target_features_value']
-output_threshold = float(settings['RUN']['output_threshold'])
-influence_hours = int(settings['RUN']['influence_hours'])
-target_dataset = settings['RUN']['target_dataset']
-disable_lemmatizer = bool(eval(settings['RUN']['disable_lemmatizer']))
 
 datasets_dir = normpath(settings['DIRECTORY']['datasets_dir'])
 models_dir = normpath(settings['DIRECTORY']['models_dir'])
@@ -45,42 +33,11 @@ token_dir = normpath(settings['DIRECTORY']['token_dir'])
 preprocessed_folder = settings['DIRECTORY']['preprocessed_folder']
 extracted_folder = settings['DIRECTORY']['extracted_folder']
 
-dataset_filename = settings['HDF']['dataset_filename'] #pathjoin(datasets_dir, target_dataset, settings['HDF']['dataset_filename'])
-fetched_data_filename = settings['HDF']['fetched_data_filename'] #pathjoin(datasets_dir, target_dataset, settings['HDF']['fetched_data_filename'])
-newsapi_group = settings['HDF']['newsapi_group']
-yfinance_group = settings['HDF']['yfinance_group']
-
-news_group = settings['HDF']['news_group']
-asset_group = settings['HDF']['asset_group']
-preprocessed_group = settings['HDF']['preprocessed_group']
-performance_group = settings['HDF']['performance_group']
-preprocessed_asset_group = settings['HDF']['preprocessed_asset_group']
-
-sentiment_analysis_model = settings['MODELS']['sentiment_analysis_model']
-sentence_transformer_model = settings['MODELS']['sentence_transformer_model']
-summary_model = settings['MODELS']['summary_model']
-
-batch_size = int(settings['SENTIMENT']['batch_size'])
-has_shuffle = bool(eval(settings['SENTIMENT']['has_shuffle']))
-num_workers = int(settings['SENTIMENT']['num_workers'])
-
 is_test = settings['RUN']['is_test']
 test_suffix = '_test' if is_test else ''
 
 encoding = "utf-8"
 
-h5File = pathjoin(datasets_dir, target_dataset, settings['HDF']['dataset_filename'])
-
-if __name__ == '__main__':
-    print(f"\n--------------------Parameters used in this run--------------------")
-    print(f"Target dataset: {target_dataset}")
-    print(f"Lookback window: {lookback_window} hours")
-    print(f"Influence window: {influence_hours} hours")
-    print(f"Use description: {use_description}")
-    print(f"output_threshold: {output_threshold}")
-    print(f"fixed_length_historical_sentiments: {fixed_length_historical_sentiments}")
-    print(f"default_value_sentiment: {default_value_sentiment}")
-    print(f"target_features_value: {target_features_value}")
 
 ###########################################################
 # Tokens for API access
@@ -285,7 +242,6 @@ def save_in_h5(filename, groupname, df_, is_continuous=False):
 
     df_.to_hdf(filename, save_groupname)
     print(f'Saved in key {save_groupname} at file {filename}')
-
 
 
 ###########################################################

@@ -3,13 +3,14 @@ import torch
 from sentence_transformers import SentenceTransformer, models
 from sklearn.decomposition import PCA
 
-import utils
+from utils import utils
 
 device = utils.device
 
 
 def get_model():
-    embedding_model = SentenceTransformer(utils.sentence_transformer_model).to(device)
+    model_name = utils.settings['MODELS']['sentence_transformer_model']
+    embedding_model = SentenceTransformer(model_name).to(device)
     return embedding_model
 
 
@@ -58,7 +59,6 @@ def whiten_and_get_embedding_batch(batch, embedding_model, ndim=128):
     # Finding Kernel
     kernel, bias = compute_kernel_bias([vecs])
     kernel = kernel[:, :ndim]
-    embeddings = []
     embeddings = np.vstack(vecs)
 
     # Sentence embeddings can be converted into an identity matrix
