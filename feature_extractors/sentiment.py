@@ -38,6 +38,8 @@ def get_sentiment(text, sentiment_tokenizer, sentiment_model):
 
 
 def get_sentiment_batch(batch, sentiment_tokenizer, sentiment_model):
+    hook_handle = sentiment_model.bert.pooler.dense.register_forward_hook(get_activations('feats'))
+
     inputs = sentiment_tokenizer(batch, padding=True, truncation=True, return_tensors='pt').to(device)
     outputs = sentiment_model(**inputs)
     sentiment_scores = get_score(outputs)
@@ -54,7 +56,7 @@ def apply(data_generator, target_function):
     #    print(param_tensor, "\t", sentiment_model.state_dict()[param_tensor].size())
     # hook_handle = sentiment_model.bert.encoder.layer[11].output.LayerNorm.register_forward_hook(get_activations('feats'))
 
-    hook_handle = sentiment_model.bert.pooler.dense.register_forward_hook(get_activations('feats'))
+    #hook_handle = sentiment_model.bert.pooler.dense.register_forward_hook(get_activations('feats'))
 
     # Get sentiment scores and features
     for i, local_batch in enumerate(data_generator):
