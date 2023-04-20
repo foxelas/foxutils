@@ -5,6 +5,7 @@ import tarfile
 from datetime import datetime
 from os import listdir, remove
 from os.path import join as pathjoin
+from os.path import exists as pathexists
 from os.path import normpath, isfile
 from sys import getsizeof
 
@@ -20,7 +21,12 @@ settings_filename = 'config.ini'
 # Reads settings from file
 def read_config():
     config = configparser.ConfigParser()
-    config.read(settings_filename)
+    filepath = ''
+    while not pathexists(pathjoin(filepath, settings_filename)):
+        filepath = pathjoin('..', filepath)
+
+    filepath = pathjoin(filepath, settings_filename)
+    config.read(filepath)
     # print({section: dict(config[section]) for section in config.sections()})
     return config
 
