@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from sklearn.metrics import ConfusionMatrixDisplay
 
-matplotlib.use('Qt5Agg')
+#matplotlib.use('Qt5Agg')
 
 
 def print_timeseries(timestamps, values, plot_title):
