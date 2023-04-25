@@ -58,14 +58,26 @@ def get_api_key(filename):
 def convert_string_to_date(date_string):
     try:
         date_value = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
-    except:
+    except ValueError:
         try:
-            date_value = datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
-        except:
-            date_value = datetime.strptime(date_string, "%Y-%m-%d %I-%p")
+            date_value = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S%z")
+        except ValueError:
+            try:
+                date_value = datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                date_value = datetime.strptime(date_string, "%Y-%m-%d %I-%p")
 
     return date_value
 
+
+def convert_fully_connected_string_to_datetime(date_string):
+    try:
+        date_value = datetime.strptime(date_string, "%Y%m%d%H%M%S")
+
+    except ValueError:
+        return None
+
+    return date_value
 
 def convert_date_to_string(date_value):
     date_value = datetime.strftime(date_value, "%Y-%m-%d")

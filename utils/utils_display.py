@@ -12,6 +12,11 @@ def print_timeseries(timestamps, values, plot_title):
     ax.plot(timestamps, values)
     ax.set_xlabel("time points")
     ax.set_ylabel("values")
+    ax.xaxis_date()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d %H:%M"))
+    for label in ax.get_xticklabels(which='major'):
+        label.set(rotation=30, horizontalalignment='right')
+
     ax.title.set_text(plot_title)
     plt.show()
 
