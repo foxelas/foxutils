@@ -8,6 +8,7 @@ from os.path import join as pathjoin
 from os.path import exists as pathexists
 from os.path import normpath, isfile
 from sys import getsizeof
+import requests
 
 import h5py
 import pandas as pd
@@ -132,6 +133,16 @@ def delete_files_by_extension(target_folder, target_extension):
         if filename.endswith(target_extension):
             # Remove File
             remove(pathjoin(target_folder, filename))
+
+
+
+
+###########################################################
+# IMG files
+def save_image_from_link(image_url, image_name='img.jpg'):
+    img_data = requests.get(image_url).content
+    with open(image_name, 'wb') as handler:
+        handler.write(img_data)
 
 
 ###########################################################
