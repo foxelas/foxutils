@@ -80,6 +80,7 @@ def convert_fully_connected_string_to_datetime(date_string):
 
     return date_value
 
+
 def convert_date_to_string(date_value):
     date_value = datetime.strftime(date_value, "%Y-%m-%d")
     return date_value
@@ -133,8 +134,6 @@ def delete_files_by_extension(target_folder, target_extension):
         if filename.endswith(target_extension):
             # Remove File
             remove(pathjoin(target_folder, filename))
-
-
 
 
 ###########################################################
