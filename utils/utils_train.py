@@ -1,14 +1,35 @@
-
 from sklearn.metrics import confusion_matrix
 import torch
 import numpy as np
-import sys
-sys.path.insert(0, '../../foxutils/')
-from utils import utils_display
+# import sys
+# sys.path.insert(0, '../../foxutils/')
+# from utils import utils_display
+from utils import utils, utils_display
 
+import joblib
+import torchmetrics
+from torch import nn
+from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
+from lightning.pytorch.loggers import TensorBoardLogger
+import lightning.pytorch as pl
+
+from os.path import join as pathjoin
+from sklearn.model_selection import train_test_split
+
+import warnings
+
+warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
 
 torch.manual_seed(42)
 output_threshold = 0.5
+
+settings = utils.settings
+datasets_dir = utils.datasets_dir
+models_dir = utils.models_dir
+token_dir = utils.token_dir
+preprocessed_folder = utils.preprocessed_folder
+extracted_folder = utils.extracted_folder
+device = utils.device
 
 
 def validate_model(data_generator, target_model, criterion):
@@ -144,3 +165,126 @@ def store_performance(model_name, df_performance, true_labels, predicted_labels,
                                       'train_accuracy': acc_train, 'train_confusion_matrix': cm_train}
     return df_performance
 
+
+###############################################################
+# Train with lightning
+class LitTargetModel(pl.LightningModule):
+    def __init__(self, model_class, **model_hyperparameters):
+        super().__init__()
+        self.save_hyperparameters()
+        self.model = model_class(**model_hyperparameters)
+        self.loss_fun = nn.BCELoss()  # F.binary_cross_entropy()
+        self.train_precision = torchmetrics.Precision(task="binary", num_classes=2)
+        self.valid_precision = torchmetrics.Precision(task="binary", num_classes=2)
+        self.train_recall = torchmetrics.Recall(task="binary", num_classes=2)
+        self.valid_recall = torchmetrics.Recall(task="binary", num_classes=2)
+        self.train_acc = torchmetrics.Accuracy(task="binary", num_classes=2)
+        self.valid_acc = torchmetrics.Accuracy(task="binary", num_classes=2)
+        print('Loss function: BCE')
+
+    def forward(self, x):
+        outputs = torch.squeeze(self.model(x))
+        preds = torch.round(outputs)
+        return preds
+
+    def training_step(self, batch, batch_idx):
+        # training_step defines the train loop.
+        feature_vectors, labels = batch
+        outputs = torch.squeeze(self.model(feature_vectors))
+        preds = torch.round(outputs)
+
+        loss = self.loss_fun(outputs, labels)
+        self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        self.train_acc(preds, labels)
+        self.log('train_acc', self.train_acc, prog_bar=True, on_step=False, on_epoch=True)
+
+        self.train_recall(preds, labels)
+        self.log('train_recall', self.train_recall, prog_bar=True, on_step=False, on_epoch=True)
+
+        self.train_precision(preds, labels)
+        self.log('train_precision', self.train_precision, prog_bar=True, on_step=False, on_epoch=True)
+        return loss
+
+    @staticmethod
+    def train_epoch_end(result):
+        loss = sum(r['loss'] for r in result) / len(result)
+        print(f'Loss at training epoch end {loss}')
+
+    def validation_step(self, batch, batch_idx):
+        feature_vectors, labels = batch
+        outputs = torch.squeeze(self.model(feature_vectors))
+        preds = torch.round(outputs)
+
+        loss = self.loss_fun(outputs, labels)
+        self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        self.valid_acc(preds, labels)
+        self.log('val_acc', self.valid_acc, prog_bar=True, on_step=False, on_epoch=True)
+
+        self.valid_recall(preds, labels)
+        self.log('val_recall', self.valid_recall, prog_bar=True, on_step=False, on_epoch=True)
+
+        self.valid_precision(preds, labels)
+        self.log('val_precision', self.valid_precision, prog_bar=True, on_step=False, on_epoch=True)
+        return loss
+
+    def configure_optimizers(self):
+        print('Optimizer SGD with lr=0.001')
+        optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
+        return optimizer
+
+
+def train_and_validate_with_lightning(data_generators, target_model, epochs):
+    early_stop_callback = EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
+    lr_logger = LearningRateMonitor()
+    logger = TensorBoardLogger("lightning_logs")
+
+    trainer = pl.Trainer(
+        max_epochs=epochs,
+        accelerator='gpu',
+        devices=1,
+        enable_model_summary=True,
+        gradient_clip_val=0.1,
+        callbacks=[lr_logger, early_stop_callback],
+        logger=logger)
+
+    trainer.fit(
+        target_model,
+        train_dataloaders=data_generators["train"],
+        val_dataloaders=data_generators["valid"])
+
+
+def save_trained_model(target_model, save_name):
+    filename = pathjoin(models_dir, save_name)
+    torch.save(target_model.state_dict(), filename.replace('.model', '.pts'))
+    # torch.save(target_model, filename.replace('.model', '.pt'))
+    print(f'Model is saved at location: {filename}')
+
+
+def load_trained_model(target_model_class, save_name):
+    filename = pathjoin(models_dir, save_name)
+    print(f'Model is loaded from location: {filename}')
+    target_model = target_model_class
+    target_model.load_state_dict(torch.load(filename.replace('.model', '.pts')))
+    # target_model = torch.load(filename.replace('.model', '.pt'))
+    target_model.eval()
+    return target_model
+
+
+def pl_load_trained_model(target_model_class, save_name):
+    filename = pathjoin(models_dir, save_name)
+    print(f'Model is loaded from location: {filename}')
+    target_model = LitTargetModel(target_model_class)
+    target_model.load_state_dict(torch.load(filename.replace('.model', '.pts')))
+    target_model.eval()
+    return target_model
+
+
+def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path):
+    print(f'Model is loaded from checkpoint: {checkpoint_path}')
+    target_model = LitTargetModel.load_from_checkpoint(checkpoint_path=checkpoint_path, model_class=target_model_class)
+    target_model.eval()
+    return target_model
+
+##################################################################################################
