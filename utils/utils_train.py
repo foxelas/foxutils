@@ -12,8 +12,10 @@ from torch import nn
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 import lightning.pytorch as pl
+import torch.nn.functional as F
 
 from os.path import join as pathjoin
+from os.path import splitext
 from sklearn.model_selection import train_test_split
 
 import warnings
@@ -235,6 +237,52 @@ class LitTargetModel(pl.LightningModule):
         return optimizer
 
 
+class ImageModel(pl.LightningModule):
+    def __init__(self, num_input_channels, width, height, model_class, **model_hyperparameters):
+        super().__init__()
+        self.save_hyperparameters()
+        self.model = model_class(**model_hyperparameters, width=width, height=height)
+        self.example_input_array = torch.zeros(2, num_input_channels, width, height)
+
+    def forward(self, x):
+        outputs = self.model(x)
+        return outputs
+
+    def _get_reconstruction_loss(self, batch):
+        """
+        Given a batch of images, this function returns the reconstruction loss (MSE in our case)
+        """
+        x, _ = batch  # We do not need the labels
+        x_hat = self.forward(x)
+        loss = F.mse_loss(x, x_hat, reduction="none")
+        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        # Using a scheduler is optional but can be helpful.
+        # The scheduler reduces the LR if the validation performance hasn't improved for the last N epochs
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                               mode='min',
+                                                               factor=0.2,
+                                                               patience=20,
+                                                               min_lr=5e-5)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+
+    def training_step(self, batch, batch_idx):
+        loss = self._get_reconstruction_loss(batch)
+        self.log('train_loss', loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        loss = self._get_reconstruction_loss(batch)
+        self.log('val_loss', loss)
+
+    def test_step(self, batch, batch_idx):
+        loss = self._get_reconstruction_loss(batch)
+        self.log('test_loss', loss)
+
+
 def train_and_validate_with_lightning(data_generators, target_model, epochs):
     early_stop_callback = EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
     lr_logger = LearningRateMonitor()
@@ -256,17 +304,19 @@ def train_and_validate_with_lightning(data_generators, target_model, epochs):
 
 
 def save_trained_model(target_model, save_name):
-    filename = pathjoin(models_dir, save_name)
-    torch.save(target_model.state_dict(), filename.replace('.model', '.pts'))
+    save_name, save_ext = splitext(save_name)
+    filename = pathjoin(models_dir, save_name + '.pts')
+    torch.save(target_model.state_dict(), filename)
     # torch.save(target_model, filename.replace('.model', '.pt'))
     print(f'Model is saved at location: {filename}')
 
 
 def load_trained_model(target_model_class, save_name):
-    filename = pathjoin(models_dir, save_name)
+    save_name, save_ext = splitext(save_name)
+    filename = pathjoin(models_dir, save_name  + '.pts')
     print(f'Model is loaded from location: {filename}')
     target_model = target_model_class
-    target_model.load_state_dict(torch.load(filename.replace('.model', '.pts')))
+    target_model.load_state_dict(torch.load(filename))
     # target_model = torch.load(filename.replace('.model', '.pt'))
     target_model.eval()
     return target_model
