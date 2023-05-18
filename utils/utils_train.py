@@ -1,3 +1,4 @@
+import pandas as pd
 from sklearn.metrics import confusion_matrix
 import torch
 import numpy as np
@@ -17,6 +18,7 @@ import torch.nn.functional as F
 from os.path import join as pathjoin
 from os.path import splitext
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 
 import warnings
 
@@ -166,6 +168,16 @@ def store_performance(model_name, df_performance, true_labels, predicted_labels,
     df_performance.loc[model_name] = {'name': model_name, 'val_accuracy': acc, 'val_confusion_matrix': cm,
                                       'train_accuracy': acc_train, 'train_confusion_matrix': cm_train}
     return df_performance
+
+
+def get_error_metrics(actual, pred):
+    mse = mean_squared_error(actual, pred)
+    mae = mean_absolute_error(actual, pred)
+    mape = mean_absolute_percentage_error(actual, pred)
+    rmse = np.sqrt(mse)
+
+    df_results = pd.DataFrame({'MSE': [mse], 'RMSE': [rmse], 'MAE': [mae], 'MAPE': [mape]})
+    return df_results
 
 
 ###############################################################
