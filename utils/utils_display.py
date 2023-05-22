@@ -4,7 +4,14 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from sklearn.metrics import ConfusionMatrixDisplay
 
-#matplotlib.use('Qt5Agg')
+import geopandas as gpd
+from shapely.geometry import Point
+
+import folium
+from folium import plugins
+
+
+# matplotlib.use('Qt5Agg')
 
 
 def print_timeseries(timestamps, values, plot_title):
@@ -85,3 +92,35 @@ def plot_accuracy_per_epoch(train_vals, test_vals, plot_title="Accuracy per Epoc
 
 def plot_loss_per_epoch(train_vals, test_vals, plot_title="Loss per Epoch", legend_names=None):
     plot_value_per_epoch(train_vals, test_vals, "Loss", plot_title, legend_names)
+
+
+def plot_coords_on_map(streetmap_file, df, label_column='ID', crs='epsg:4326'):
+    street_map = gpd.read_file(streetmap_file)
+    long = df['Longitude'].values
+    lat = df['Latitude'].values
+    geometry = [Point(xy) for xy in zip(long, lat)]
+    geo_df = gpd.GeoDataFrame(df, geometry=geometry)
+    geo_df.crs = crs
+
+    fig, ax = plt.subplots(figsize=(15, 15))
+    street_map.plot(ax=ax, alpha=0.4, color='grey')
+    geo_df.plot(ax=ax, markersize=20, color='blue', marker='o')
+    geo_df.apply(lambda x: ax.annotate(x[label_column], xy=x.loc['geometry'].coords[0]), axis=1)
+    # plt.legend(prop={'size':15})
+
+
+def plot_markers_on_map(center_coords, df, label_column='ID'):
+    m = folium.Map(location=center_coords)
+
+    long = df['Longitude'].values
+    lat = df['Latitude'].values
+    labels = df[label_column].values
+
+    for (x,y, z) in zip(lat, long, labels):
+        folium.Marker(
+            location=[x,y],
+            popup=(label_column + ': ' + str(z)),  # pop-up label for the marker
+            icon=folium.Icon()
+        ).add_to(m)
+
+    return m
