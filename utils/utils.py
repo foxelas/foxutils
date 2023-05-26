@@ -13,10 +13,10 @@ from pathlib import Path
 import re
 import glob
 
-
 import h5py
 import pandas as pd
 import torch
+import time
 
 ###########################################################
 # The filename of the settings file
@@ -110,6 +110,7 @@ def increment_path(path, exist_ok=True, sep=''):
         i = [int(m.groups()[0]) for m in matches if m]  # indices
         n = max(i) + 1 if i else 2  # increment number
         return f"{path}{sep}{n}"  # update path
+
 
 ###########################################################
 # Memory
@@ -311,4 +312,27 @@ def pad_values(values, fixed_length, default_value):
         values_[0:n] = values
     return values_
 
+
 ##########################################################
+
+def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column='datetime'):
+    dfs = [x.set_index([index_column]) for x in dfs]
+    df = pd.concat(dfs, join=method)
+    df.sort_index(inplace=True)
+
+    if use_interpolation is not None:
+        for i, x in enumerate(use_interpolation):
+            if x is not None:
+                interp_cols = dfs[i].columns.tolist()
+                [df[col].interpolate(x, inplace=True) for col in interp_cols]
+    df.dropna(inplace=True)
+    return df
+
+
+##########################################################
+
+def time_execution(target_function, **kwargs):
+    start = time.time()
+    target_function(**kwargs)
+    end = time.time()
+    print(f'Execution took {end - start} seconds.')
