@@ -317,7 +317,7 @@ def train_and_validate_with_lightning(data_generators, target_model, epochs):
 
 def save_trained_model(target_model, save_name):
     save_name, save_ext = splitext(save_name)
-    filename = pathjoin(models_dir, save_name + '.pts')
+    filename = utils.mkdir_if_not_exist( pathjoin(models_dir, save_name + '.pts'))
     torch.save(target_model.state_dict(), filename)
     # torch.save(target_model, filename.replace('.model', '.pt'))
     print(f'Model is saved at location: {filename}')
@@ -325,7 +325,7 @@ def save_trained_model(target_model, save_name):
 
 def load_trained_model(target_model_class, save_name):
     save_name, save_ext = splitext(save_name)
-    filename = pathjoin(models_dir, save_name  + '.pts')
+    filename = pathjoin(models_dir, save_name + '.pts')
     print(f'Model is loaded from location: {filename}')
     target_model = target_model_class
     target_model.load_state_dict(torch.load(filename))

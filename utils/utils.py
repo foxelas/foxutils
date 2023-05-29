@@ -3,7 +3,7 @@ import gzip
 import json
 import tarfile
 from datetime import datetime
-from os import listdir, remove
+from os import listdir, remove, makedirs
 from os.path import join as pathjoin
 from os.path import exists as pathexists
 from os.path import normpath, isfile
@@ -21,7 +21,6 @@ import time
 ###########################################################
 # The filename of the settings file
 settings_filename = 'config.ini'
-
 
 # Reads settings from file
 def read_config():
@@ -336,3 +335,11 @@ def time_execution(target_function, **kwargs):
     target_function(**kwargs)
     end = time.time()
     print(f'Execution took {end - start} seconds.')
+
+
+#########################################################
+
+def mkdir_if_not_exist(target_path):
+    if not pathexists(target_path):
+        makedirs(target_path)
+
