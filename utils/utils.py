@@ -343,3 +343,7 @@ def mkdir_if_not_exist(target_path):
     if not pathexists(target_path):
         makedirs(target_path)
 
+#########################################################
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
