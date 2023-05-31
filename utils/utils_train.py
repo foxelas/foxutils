@@ -383,9 +383,9 @@ def apply_scaling(df, scaler, has_fit=True):
     return scaler, df_
 
 
-def make_train_val_test(data_df):
-    train_df, val_df = train_test_split(data_df, test_size=0.3, random_state=SEED, shuffle=False)
-    train_df, test_df = train_test_split(train_df, test_size=0.05, random_state=SEED, shuffle=False)
+def make_train_val_test(data_df, val_size=0.3, test_size=0.05):
+    train_df, val_df = train_test_split(data_df, test_size=val_size, random_state=SEED, shuffle=False)
+    train_df, test_df = train_test_split(train_df, test_size=test_size, random_state=SEED, shuffle=False)
 
     print(f'Train length: {len(train_df)}')
     print(f'Val length: {len(val_df)}')
