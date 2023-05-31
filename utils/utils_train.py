@@ -6,6 +6,10 @@ import numpy as np
 # sys.path.insert(0, '../../foxutils/')
 # from utils import utils_display
 from utils import utils, utils_display
+from .utils import SEED, BATCH_SIZE, MAX_EPOCHS
+
+import IPython
+import IPython.display
 
 import joblib
 import torchmetrics
@@ -19,12 +23,21 @@ from os.path import join as pathjoin
 from os.path import splitext
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
+from sklearn.preprocessing import MinMaxScaler
+
+from tensorflow.keras.callbacks import EarlyStopping as tfEarlyStopping
+from tensorflow.keras.utils import set_random_seed
+from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.metrics import MeanAbsoluteError
+from tensorflow.keras.optimizers import Adam
+
+set_random_seed(SEED)
 
 import warnings
 
 warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
 
-torch.manual_seed(42)
+torch.manual_seed(SEED)
 output_threshold = 0.5
 
 settings = utils.settings
@@ -317,7 +330,7 @@ def train_and_validate_with_lightning(data_generators, target_model, epochs):
 
 def save_trained_model(target_model, save_name):
     save_name, save_ext = splitext(save_name)
-    filename = utils.mkdir_if_not_exist( pathjoin(models_dir, save_name + '.pts'))
+    filename = utils.mkdir_if_not_exist(pathjoin(models_dir, save_name + '.pts'))
     torch.save(target_model.state_dict(), filename)
     # torch.save(target_model, filename.replace('.model', '.pt'))
     print(f'Model is saved at location: {filename}')
@@ -349,4 +362,54 @@ def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path):
     target_model.eval()
     return target_model
 
+
 ##################################################################################################
+
+
+def apply_scaling(df, scaler, has_fit=True):
+    numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+    other_cols = [x for x in df.columns if x not in numeric_cols]
+
+    df_ = df.select_dtypes(include=np.number)
+    if has_fit:
+        df_ = scaler.fit_transform(df_)
+    else:
+        df_ = scaler.transform(df_)
+
+    df_ = pd.DataFrame(df_, columns=numeric_cols)
+    for x in other_cols:
+        df_[x] = df[x]
+
+    return scaler, df_
+
+
+def make_train_val_test(data_df):
+    train_df, val_df = train_test_split(data_df, test_size=0.3, random_state=SEED, shuffle=False)
+    train_df, test_df = train_test_split(train_df, test_size=0.05, random_state=SEED, shuffle=False)
+
+    print(f'Train length: {len(train_df)}')
+    print(f'Val length: {len(val_df)}')
+    print(f'Test length: {len(test_df)}')
+
+    scaler = MinMaxScaler()
+    scaler, train_df = apply_scaling(train_df, scaler, has_fit=True)
+    _, val_df = apply_scaling(val_df, scaler, has_fit=False)
+    _, test_df = apply_scaling(test_df, scaler, has_fit=False)
+
+    return train_df, val_df, test_df, scaler
+
+
+def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS):
+    early_stopping = tfEarlyStopping(monitor='val_loss',
+                                     patience=patience,
+                                     mode='min')
+
+    model.compile(loss=MeanSquaredError(),
+                  optimizer=Adam(),
+                  metrics=[MeanAbsoluteError()])
+
+    history = model.fit(window.train, epochs=max_epochs,verbose=0, validation_data=window.val, callbacks=[early_stopping])
+
+    #IPython.display.clear_output()
+
+    return history
