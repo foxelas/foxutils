@@ -21,9 +21,6 @@ import time
 ###########################################################
 
 SEED = 42
-BATCH_SIZE = 32
-MAX_EPOCHS = 20
-HISTORY_LENGTH = 3
 
 ###########################################################
 # The filename of the settings file

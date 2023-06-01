@@ -2,16 +2,12 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix
 import torch
 import numpy as np
-# import sys
-# sys.path.insert(0, '../../foxutils/')
-# from utils import utils_display
 from utils import utils, utils_display
-from .utils import SEED, BATCH_SIZE, MAX_EPOCHS
+from .utils import SEED
 
 import IPython
 import IPython.display
 
-import joblib
 import torchmetrics
 from torch import nn
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
@@ -25,15 +21,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 from sklearn.preprocessing import MinMaxScaler
 
-from tensorflow.keras.callbacks import EarlyStopping as tfEarlyStopping
-from tensorflow.keras.utils import set_random_seed
-from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras.metrics import MeanAbsoluteError
-from tensorflow.keras.optimizers import Adam
-
-set_random_seed(SEED)
-
 import warnings
+
+MAX_EPOCHS = 20
 
 warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
 
@@ -399,17 +389,4 @@ def make_train_val_test(data_df, val_size=0.3, test_size=0.05):
     return train_df, val_df, test_df, scaler
 
 
-def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS):
-    early_stopping = tfEarlyStopping(monitor='val_loss',
-                                     patience=patience,
-                                     mode='min')
 
-    model.compile(loss=MeanSquaredError(),
-                  optimizer=Adam(),
-                  metrics=[MeanAbsoluteError()])
-
-    history = model.fit(window.train, epochs=max_epochs,verbose=0, validation_data=window.val, callbacks=[early_stopping])
-
-    #IPython.display.clear_output()
-
-    return history

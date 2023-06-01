@@ -2,10 +2,10 @@ from tensorflow import stack
 from tensorflow.keras.utils import timeseries_dataset_from_array
 import matplotlib.pyplot as plt
 import numpy as np
-from .utils import BATCH_SIZE, HISTORY_LENGTH
 
-IN_STEPS = 10
+HISTORY_STEPS = 10
 OUT_STEPS = 10
+BATCH_SIZE = 32
 
 
 def split_window(self, features):
@@ -118,7 +118,6 @@ WindowGenerator.example = example
 
 
 def plot(self, model=None, plot_col='Labels', max_subplots=3):
-
     inputs, labels = self.example
     plt.figure(figsize=(12, 8))
     plot_col_index = self.column_indices[plot_col]
@@ -173,7 +172,7 @@ def single_step_window_generator(train_df, val_df, test_df, target_column, batch
     return single_step_window
 
 
-def conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_LENGTH,
+def conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_STEPS,
                           batch_size=BATCH_SIZE):
     conv_window_gen = WindowGenerator(input_width=history_length, label_width=1, shift=1, train_df=train_df,
                                       val_df=val_df, test_df=test_df, label_columns=[target_column],
@@ -181,7 +180,7 @@ def conv_window_generator(train_df, val_df, test_df, target_column, history_leng
     return conv_window_gen
 
 
-def multiple_point_conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_LENGTH,
+def multiple_point_conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_STEPS,
                                          batch_size=BATCH_SIZE):
     LABEL_WIDTH = len(test_df) - history_length
     INPUT_WIDTH = LABEL_WIDTH + (history_length - 1)
@@ -190,7 +189,9 @@ def multiple_point_conv_window_generator(train_df, val_df, test_df, target_colum
                                        batch_size=batch_size)
     return wide_conv_window
 
-def multi_step_window_generator(train_df, val_df, test_df, target_column, in_steps = IN_STEPS, out_steps=OUT_STEPS, batch_size=BATCH_SIZE):
+
+def multi_step_window_generator(train_df, val_df, test_df, target_column, in_steps=HISTORY_STEPS, out_steps=OUT_STEPS,
+                                batch_size=BATCH_SIZE):
     multi_window = WindowGenerator(input_width=in_steps,
                                    label_width=out_steps,
                                    shift=out_steps,
@@ -198,5 +199,3 @@ def multi_step_window_generator(train_df, val_df, test_df, target_column, in_ste
                                    test_df=test_df, label_columns=[target_column],
                                    batch_size=batch_size)
     return multi_window
-
-
