@@ -3,8 +3,9 @@ from tensorflow.keras import Model as kerasModel
 from tensorflow.keras.callbacks import EarlyStopping as tfEarlyStopping
 from tensorflow.keras.utils import set_random_seed
 from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras.metrics import MeanAbsoluteError
+from tensorflow.keras.metrics import MeanAbsoluteError, RootMeanSquaredError, MeanAbsolutePercentageError
 from tensorflow.keras.optimizers import Adam
+
 
 from .utils import SEED
 from .utils_data_generators import HISTORY_STEPS, BATCH_SIZE, OUT_STEPS
@@ -35,7 +36,7 @@ class SingleStepLastValueBaseLine(kerasModel):
 class SingleStepLinear(kerasModel):
 
     def __init__(self):
-        super().__int__()
+        super().__init__()
         self.net = tf.keras.models.Sequential([
             tf.keras.layers.Dense(units=1)
         ])
@@ -46,7 +47,7 @@ class SingleStepLinear(kerasModel):
 
     def plot_weights(self, feature_names):
         plt.bar(x=range(len(feature_names)),
-                height=self.layers[0].kernel[:, 0].numpy())
+                height=self.net.layers[0].kernel[:, 0].numpy())
         axis = plt.gca()
         axis.set_xticks(range(len(feature_names)))
         _ = axis.set_xticklabels(feature_names, rotation=90)
@@ -267,8 +268,9 @@ class MultiStepMemoryFeedback(kerasModel):
 
     def show_dimensions(self, multi_window):
         prediction, state = self.warmup(multi_window.example[0])
-        print(f' Prediction shape {prediction.shape}')
+        print(f'Prediction shape {prediction.shape}')
         print('Output shape (batch, time, features): ', self.call(multi_window.example[0]).shape)
+        print('')
 
     def call(self, inputs, training=None):
         # Use a TensorArray to capture dynamically unrolled outputs.
@@ -370,13 +372,10 @@ def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS):
 
     model.compile(loss=MeanSquaredError(),
                   optimizer=Adam(),
-                  metrics=[MeanAbsoluteError()])
+                  metrics=[MeanAbsoluteError(), RootMeanSquaredError(), MeanAbsolutePercentageError()])
 
     history = model.fit(window.train, epochs=max_epochs, verbose=0, validation_data=window.val,
                         callbacks=[early_stopping])
-
-    # IPython.display.clear_output()
-
     return history
 
 
@@ -386,9 +385,6 @@ def compile_and_evaluate(model, train_window_generator, plot_window_generator=No
         print(f'\n\n{descr}\n\n')
 
     history = compile_and_fit(model, train_window_generator, max_epochs=max_epochs)
-    # model.compile(loss=MeanSquaredError(),
-    #                 metrics=[MeanAbsoluteError()])
-
     val_perf = model.evaluate(train_window_generator.val)
     test_perf = model.evaluate(train_window_generator.test, verbose=0)
 
