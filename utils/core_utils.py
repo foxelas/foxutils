@@ -6,7 +6,7 @@ from datetime import datetime
 from os import listdir, remove, makedirs
 from os.path import join as pathjoin
 from os.path import exists as pathexists
-from os.path import normpath, isfile
+from os.path import normpath, isfile, dirname
 from sys import getsizeof
 import requests
 from pathlib import Path
@@ -17,6 +17,11 @@ import h5py
 import pandas as pd
 import torch
 import time
+
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+from torchvision import transforms
+
 
 ###########################################################
 
@@ -344,6 +349,7 @@ def time_execution(target_function, **kwargs):
 #########################################################
 
 def mkdir_if_not_exist(target_path):
+    target_path = dirname(target_path)
     if not pathexists(target_path):
         makedirs(target_path)
 
@@ -351,3 +357,15 @@ def mkdir_if_not_exist(target_path):
 
 def flatten(l):
     return [item for sublist in l for item in sublist]
+
+
+#########################################################
+
+def read_image_to_tensor(filename, dataset_dir, im_height=None, im_width=None):
+    image = Image.open(pathjoin(dataset_dir, filename))
+    if im_width is not None and im_height is not None:
+        image = image.resize((im_height, im_width))
+    image = transforms.PILToTensor()(image)
+    image = image.float()
+    image /= 255.0
+    return image

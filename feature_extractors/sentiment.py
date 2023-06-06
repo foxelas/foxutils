@@ -1,13 +1,13 @@
 # Import / Install libraries
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from utils import utils
+from utils import core_utils
 
-device = utils.device
+device = core_utils.device
 
 
 def get_model_and_tokenizer():
-    model_name = utils.settings['MODELS']['sentiment_analysis_model']
+    model_name = core_utils.settings['MODELS']['sentiment_analysis_model']
     sentiment_tokenizer = AutoTokenizer.from_pretrained(model_name)
     sentiment_model = AutoModelForSequenceClassification.from_pretrained(model_name).to(device)
     return sentiment_tokenizer, sentiment_model

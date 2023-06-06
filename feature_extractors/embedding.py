@@ -3,13 +3,13 @@ import torch
 from sentence_transformers import SentenceTransformer, models
 from sklearn.decomposition import PCA
 
-from utils import utils
+from utils import core_utils
 
-device = utils.device
+device = core_utils.device
 
 
 def get_model():
-    model_name = utils.settings['MODELS']['sentence_transformer_model']
+    model_name = core_utils.settings['MODELS']['sentence_transformer_model']
     embedding_model = SentenceTransformer(model_name).to(device)
     return embedding_model
 

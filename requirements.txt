@@ -21,3 +21,12 @@ transformers==4.26.0
 
 
 
+
+Pillow~=9.5.0
+torchvision~=0.14.1
+ipython~=8.12.0
+scikit-learn~=1.0.2
+tqdm~=4.65.0
+geopandas~=0.13.0
+folium~=0.14.0
+shapely~=2.0.1

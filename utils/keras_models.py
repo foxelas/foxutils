@@ -2,14 +2,14 @@ import tensorflow as tf
 from tensorflow.keras import Model as kerasModel
 from tensorflow.keras.callbacks import EarlyStopping as tfEarlyStopping
 from tensorflow.keras.utils import set_random_seed
-from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras.metrics import MeanAbsoluteError, RootMeanSquaredError, MeanAbsolutePercentageError
+from tensorflow.keras.losses import MeanSquaredError as MeanSquaredErrorLoss
+from tensorflow.keras.metrics import MeanSquaredError, MeanAbsoluteError, RootMeanSquaredError, MeanAbsolutePercentageError
 from tensorflow.keras.optimizers import Adam
 
 
-from .utils import SEED
-from .utils_data_generators import HISTORY_STEPS, BATCH_SIZE, OUT_STEPS
-from .utils_train import MAX_EPOCHS
+from .core_utils import SEED
+from .data_generators import OUT_STEPS
+from .train_functionalities import MAX_EPOCHS
 
 import matplotlib.pyplot as plt
 
@@ -370,9 +370,9 @@ def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS):
                                      patience=patience,
                                      mode='min')
 
-    model.compile(loss=MeanSquaredError(),
+    model.compile(loss=MeanSquaredErrorLoss(),
                   optimizer=Adam(),
-                  metrics=[MeanAbsoluteError(), RootMeanSquaredError(), MeanAbsolutePercentageError()])
+                  metrics=[MeanSquaredError(), MeanAbsoluteError(), RootMeanSquaredError(), MeanAbsolutePercentageError()])
 
     history = model.fit(window.train, epochs=max_epochs, verbose=0, validation_data=window.val,
                         callbacks=[early_stopping])

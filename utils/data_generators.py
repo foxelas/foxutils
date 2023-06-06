@@ -2,10 +2,10 @@ from tensorflow import stack
 from tensorflow.keras.utils import timeseries_dataset_from_array
 import matplotlib.pyplot as plt
 import numpy as np
+from .train_functionalities import BATCH_SIZE
 
 HISTORY_STEPS = 10
 OUT_STEPS = 10
-BATCH_SIZE = 32
 
 
 def split_window(self, features):
