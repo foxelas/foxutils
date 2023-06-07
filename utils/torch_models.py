@@ -1,11 +1,16 @@
 # PyTorch
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+from tqdm.notebook import tqdm
 
 #############################################
 # Autoencoder
 
 IM_WIDTH = 640
 IM_HEIGHT = 368
+
 
 class Encoder(nn.Module):
 
@@ -107,4 +112,37 @@ class Decoder(nn.Module):
 
 
 #############################################
+def get_reconstruction_loss(x, x_hat):
+    loss = F.mse_loss(x, x_hat, reduction="none")
+    loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+    return loss
 
+
+def reconstruct_images(model, input_imgs):
+    # Reconstruct images
+    model.eval()
+    with torch.no_grad():
+        reconst_imgs = model(input_imgs.to(model.device))
+    reconst_imgs = reconst_imgs.cpu()
+    reconstruction_errors = [get_reconstruction_loss(torch.unsqueeze(x,1), torch.unsqueeze(y,1)) for (x, y) in zip(input_imgs, reconst_imgs)]
+
+    return reconst_imgs, reconstruction_errors
+
+
+def embed_imgs(model, data_loader, transform_function=None):
+    img_list, embed_list, names_list = [], [], []
+    model.eval()
+    for imgs, names in tqdm(data_loader, desc="Encoding images", leave=False):
+        with torch.no_grad():
+            z = model.encoder(imgs.to(model.device))
+
+        if transform_function is not None:
+            imgs = [transform_function(x) for x in imgs]
+
+        img_list.append(torch.stack(imgs))
+        embed_list.append(z)
+        names_list.append(names)
+
+    return (torch.cat(img_list, dim=0), torch.cat(embed_list, dim=0), torch.cat(names_list, dim=0))
+
+#############################################

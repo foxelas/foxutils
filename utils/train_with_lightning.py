@@ -1,4 +1,4 @@
-from .torch_models import Encoder, Decoder
+from .torch_models import Encoder, Decoder, get_reconstruction_loss
 from .core_utils import SEED, models_dir
 
 from os.path import join as pathjoin
@@ -228,8 +228,7 @@ class Autoencoder(pl.LightningModule):
         """
         x, _ = batch  # We do not need the labels
         x_hat = self.forward(x)
-        loss = F.mse_loss(x, x_hat, reduction="none")
-        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        loss = get_reconstruction_loss(x, x_hat)
         return loss
 
     def configure_optimizers(self):

@@ -14,6 +14,8 @@ from sklearn.preprocessing import MinMaxScaler
 from utils import core_utils, display_and_plot
 from .core_utils import SEED
 
+import pickle
+
 ###########################################################
 MAX_EPOCHS = 20
 NUM_WORKERS = 0
@@ -198,6 +200,21 @@ def load_trained_model(target_model_class, save_name):
     target_model.load_state_dict(torch.load(filename))
     # target_model = torch.load(filename.replace('.model', '.pt'))
     target_model.eval()
+    return target_model
+
+def pickle_model(target_model, save_name):
+    save_name, save_ext = splitext(save_name)
+    filename = pathjoin(models_dir, save_name + '.pkl')
+    f = open(filename, "wb")
+    f.write(pickle.dumps(target_model))
+    f.close()
+    print(f'Model is saved at location: {filename}')
+
+def unpickle_model(save_name):
+    save_name, save_ext = splitext(save_name)
+    filename = pathjoin(models_dir, save_name + '.pkl')
+    target_model = pickle.loads(open(filename, "rb").read())
+    print(f'Model is loaded from location: {filename}')
     return target_model
 
 
