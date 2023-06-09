@@ -254,6 +254,12 @@ def make_train_val_test(data_df, val_size=0.3, test_size=0.05):
     return train_df, val_df, test_df, scaler
 
 
+def make_data_loader_with_torch(dataset, batch_size=BATCH_SIZE, show_size=False):
+    data_generator = TorchDataLoader(dataset, shuffle=False, batch_size=batch_size)
+    print(f'Number of images in the data loader: {len(dataset)}')
+    return data_generator
+
+
 def make_train_val_test_generators_with_torch(dataset, val_percentage, test_percentage, batch_size=BATCH_SIZE,
                                               show_size=False):
     permutation_generator = torch.Generator().manual_seed(SEED)
@@ -266,7 +272,7 @@ def make_train_val_test_generators_with_torch(dataset, val_percentage, test_perc
         print(f'Number of test images: {len(test_dataset)}')
 
     data_generators = {"train": TorchDataLoader(train_dataset, shuffle=False, batch_size=batch_size),
-                       "valid": TorchDataLoader(val_dataset, shuffle=False, batch_size=batch_size),
+                        "valid": TorchDataLoader(val_dataset, shuffle=False, batch_size=batch_size),
                        "test": TorchDataLoader(test_dataset, shuffle=False, batch_size=batch_size)}
 
     return data_generators

@@ -4,6 +4,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from tqdm.notebook import tqdm
+import torchvision
+from torchvision import transforms
+import matplotlib.pyplot as plt
+
+from .core_utils import read_image_to_tensor
 
 #############################################
 # Autoencoder
@@ -11,6 +16,14 @@ from tqdm.notebook import tqdm
 IM_WIDTH = 640
 IM_HEIGHT = 368
 
+
+def crop_square(img, im_width):
+    img = transforms.ToPILImage()(img)
+    img = img.crop((0, 0, im_width, im_width))
+    return transforms.PILToTensor()(img)
+
+
+#############################################
 
 class Encoder(nn.Module):
 
@@ -124,12 +137,21 @@ def reconstruct_images(model, input_imgs):
     with torch.no_grad():
         reconst_imgs = model(input_imgs.to(model.device))
     reconst_imgs = reconst_imgs.cpu()
-    reconstruction_errors = [get_reconstruction_loss(torch.unsqueeze(x,1), torch.unsqueeze(y,1)) for (x, y) in zip(input_imgs, reconst_imgs)]
+    reconstruction_errors = [get_reconstruction_loss(torch.unsqueeze(x, 1), torch.unsqueeze(y, 1)) for (x, y) in
+                             zip(input_imgs, reconst_imgs)]
 
     return reconst_imgs, reconstruction_errors
 
 
-def embed_imgs(model, data_loader, transform_function=None):
+def embed_imgs(model, input_imgs):
+    model.eval()
+    with torch.no_grad():
+        img_embeds = model.encoder(input_imgs.to(model.device))
+
+    return img_embeds
+
+
+def embed_imgs_with_dataloader(model, data_loader, transform_function=None):
     img_list, embed_list, names_list = [], [], []
     model.eval()
     for imgs, names in tqdm(data_loader, desc="Encoding images", leave=False):
@@ -145,4 +167,49 @@ def embed_imgs(model, data_loader, transform_function=None):
 
     return (torch.cat(img_list, dim=0), torch.cat(embed_list, dim=0), torch.cat(names_list, dim=0))
 
+
 #############################################
+
+def display_reconstruction_results_and_errors(target_files, dataset_dir, model_dict, im_height=None, im_width=None):
+    # In each row displays the original image and a reconstruction from each model
+    for target_filename in target_files:
+        img = read_image_to_tensor(target_filename, dataset_dir, im_height, im_width)
+        input_imgs = torch.stack([img])
+
+        reconst_imgs = {}
+        reconstruction_errors = {}
+        for key in model_dict:
+            reconst_imgs[key], reconstruction_errors[key] = reconstruct_images(model_dict[key]["model"], input_imgs)
+
+        reconst_imgs = torch.stack([reconst_imgs[x][0] for x in reconst_imgs])
+        imgs = torch.cat([input_imgs, reconst_imgs], dim=0)  # .flatten(0,1)
+
+        labels = ["Dim " + str(key) + "(MSE: " + "%.2f" % reconstruction_errors[key][0].item() + ")" for
+                  key in model_dict]
+        labels.insert(0, "Original")
+        fig_title = "[" + ', '.join(labels) + "]"
+
+        grid = torchvision.utils.make_grid(imgs, normalize=True, range=(-1, 1))
+        grid = grid.permute(1, 2, 0)
+        plt.figure(figsize=(15, 5))
+        plt.title(fig_title)
+        plt.imshow(grid)
+        plt.axis('off')
+        plt.show()
+
+
+def visualize_reconstructions(model, input_imgs):
+    # Shows all image reconstructions in a row
+    reconst_imgs, reconstruction_errors = reconstruct_images(model, input_imgs)
+
+    # Plotting
+    imgs = torch.stack([reconst_imgs], dim=1).flatten(0, 1)
+    grid = torchvision.utils.make_grid(imgs, normalize=True, range=(-1, 1))
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(15, 5))
+    plt.title(f"Reconstructed from {model.hparams.latent_dim} latents")
+    plt.imshow(grid)
+    plt.axis('off')
+    plt.show()
+
+    return reconst_imgs, reconstruction_errors
