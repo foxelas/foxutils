@@ -254,9 +254,10 @@ def make_train_val_test(data_df, val_size=0.3, test_size=0.05):
     return train_df, val_df, test_df, scaler
 
 
-def make_data_loader_with_torch(dataset, batch_size=BATCH_SIZE, show_size=False):
-    data_generator = TorchDataLoader(dataset, shuffle=False, batch_size=batch_size)
-    print(f'Number of images in the data loader: {len(dataset)}')
+def make_data_loader_with_torch(dataset, batch_size=BATCH_SIZE, shuffle=False, show_size=False):
+    data_generator = TorchDataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
+    if show_size:
+        print(f'Number of images in the data loader: {len(dataset)}')
     return data_generator
 
 
