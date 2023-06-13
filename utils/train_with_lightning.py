@@ -4,7 +4,6 @@ from .core_utils import SEED, models_dir
 from os.path import join as pathjoin
 from os.path import isfile, splitext
 
-
 # PyTorch
 import torch
 from torch import nn
@@ -19,8 +18,8 @@ from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, Mode
 from lightning.pytorch.loggers import TensorBoardLogger
 
 import warnings
-warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
 
+warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
 
 # Setting the seed
 pl.seed_everything(SEED)
@@ -77,30 +76,61 @@ def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path):
 #################################################################################
 # LightningModule classes
 
+def get_binary_label(model, x):
+    outputs = torch.squeeze(model(x))
+    preds = torch.round(outputs)
+    return outputs, preds
+
+
+def get_label_probs(model, x):
+    outputs = model(x)
+    return outputs, outputs
+
+
+def get_argmax_label(model, x):
+    outputs = model(x)
+    _, preds = torch.max(outputs, 1)
+    return outputs, preds
+
+
+def get_sgd_optimizer(self):
+    optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
+    return optimizer
+
+
 class PredictionModel(pl.LightningModule):
-    def __init__(self, model_class, **model_hyperparameters):
+    def __init__(self, model_class, task="binary", num_classes=2, num_labels=2, forward_function=get_binary_label,
+                 loss_fun=nn.BCELoss, configure_optimizers_fun=None, **model_hyperparameters):
         super().__init__()
-        self.save_hyperparameters()
-        self.model = model_class(**model_hyperparameters)
-        self.loss_fun = nn.BCELoss()  # F.binary_cross_entropy()
-        self.train_precision = torchmetrics.Precision(task="binary", num_classes=2)
-        self.valid_precision = torchmetrics.Precision(task="binary", num_classes=2)
-        self.train_recall = torchmetrics.Recall(task="binary", num_classes=2)
-        self.valid_recall = torchmetrics.Recall(task="binary", num_classes=2)
-        self.train_acc = torchmetrics.Accuracy(task="binary", num_classes=2)
-        self.valid_acc = torchmetrics.Accuracy(task="binary", num_classes=2)
-        print('Loss function: BCE')
+        self.save_hyperparameters(ignore=['loss_fun', 'model_class'])
+        self.forward_function = forward_function
+        self.loss_fun = loss_fun  # F.binary_cross_entropy()
+        if len(model_hyperparameters) == 0:
+            self.model = model_class
+        else:
+            self.model = model_class(**model_hyperparameters)
+
+        if configure_optimizers_fun is None:
+            self.automatic_optimization = True
+        else:
+            self.automatic_optimization = False
+            self.configure_optimizers = configure_optimizers_fun
+
+        self.train_precision = torchmetrics.Precision(task=task, num_classes=num_classes, num_labels=num_labels)
+        self.valid_precision = torchmetrics.Precision(task=task, num_classes=num_classes, num_labels=num_labels)
+        self.train_recall = torchmetrics.Recall(task=task, num_classes=num_classes, num_labels=num_labels)
+        self.valid_recall = torchmetrics.Recall(task=task, num_classes=num_classes, num_labels=num_labels)
+        self.train_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, num_labels=num_labels)
+        self.valid_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, num_labels=num_labels)
 
     def forward(self, x):
-        outputs = torch.squeeze(self.model(x))
-        preds = torch.round(outputs)
+        _, preds = self.forward_function(self.model, x)
         return preds
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
         feature_vectors, labels = batch
-        outputs = torch.squeeze(self.model(feature_vectors))
-        preds = torch.round(outputs)
+        outputs, preds = self.forward_function(self.model, feature_vectors)
 
         loss = self.loss_fun(outputs, labels)
         self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -113,23 +143,20 @@ class PredictionModel(pl.LightningModule):
 
         self.train_precision(preds, labels)
         self.log('train_precision', self.train_precision, prog_bar=True, on_step=False, on_epoch=True)
+
+        optimizer = self.optimizers()
+        optimizer.zero_grad()
+        #self.manual_backward(loss)
+        optimizer.step()
+
+        sch = self.lr_schedulers()
+        sch.step()
         return loss
 
-    @staticmethod
-    def train_epoch_end(result):
-        loss = sum(r['loss'] for r in result) / len(result)
-        print(f'Loss at training epoch end {loss}')
-
-
-    @staticmethod
-    def validation_epoch_end(result):
-        loss = sum(r['val_loss'] for r in result) / len(result)
-        print(f'Loss at validation epoch end {loss}')
 
     def validation_step(self, batch, batch_idx):
         feature_vectors, labels = batch
-        outputs = torch.squeeze(self.model(feature_vectors))
-        preds = torch.round(outputs)
+        outputs, preds = self.forward_function(self.model, feature_vectors)
 
         loss = self.loss_fun(outputs, labels)
         self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -143,11 +170,6 @@ class PredictionModel(pl.LightningModule):
         self.valid_precision(preds, labels)
         self.log('val_precision', self.valid_precision, prog_bar=True, on_step=False, on_epoch=True)
         return loss
-
-    def configure_optimizers(self):
-        print('Optimizer SGD with lr=0.001')
-        optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
-        return optimizer
 
 
 class ImageModel(pl.LightningModule):
@@ -180,7 +202,7 @@ class ImageModel(pl.LightningModule):
                                                                factor=0.2,
                                                                patience=20,
                                                                min_lr=5e-5)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def training_step(self, batch, batch_idx):
         loss = self._get_reconstruction_loss(batch)
@@ -259,24 +281,42 @@ class Autoencoder(pl.LightningModule):
 #################################################################################
 # Lightning Training
 
-def train_predictive_model(data_generators, target_model, epochs):
+def train_predictive_model(target_model, lightning_log_dir, data_generators, epochs=2):
+    lr_logger = LearningRateMonitor("epoch")
+    logger = TensorBoardLogger(lightning_log_dir)
     early_stop_callback = EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
-    lr_logger = LearningRateMonitor()
-    logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
+        log_every_n_steps=4,
         max_epochs=epochs,
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
-        gradient_clip_val=0.1,
-        callbacks=[lr_logger, early_stop_callback],
+        callbacks=[lr_logger,
+                   early_stop_callback,
+                   PrintLossCallback(every_n_epochs=5),
+                   ModelCheckpoint(monitor='val_loss', save_weights_only=False)
+                   ],
         logger=logger)
 
     trainer.fit(
         target_model,
         train_dataloaders=data_generators["train"],
         val_dataloaders=data_generators["valid"])
+
+    return target_model
+
+
+class PrintLossCallback(pl.Callback):
+    def __init__(self, every_n_epochs=20):
+        super().__init__()
+        self.every_n_epochs = every_n_epochs
+
+    def on_epoch_end(self, trainer, pl_module):
+        metrics = trainer.callback_metrics
+        print(f"Epoch: {trainer.current_epoch}, "
+              f"Train Loss: {metrics['train_loss']:.4f}"
+              f"Validation Loss: {metrics['val_loss']:.4f}")
 
 
 class GenerateCallbackForImageReconstruction(pl.Callback):
@@ -314,7 +354,8 @@ def train_image_reconstruction_model(target_model, lightning_log_dir, data_gener
         devices=1,
         enable_model_summary=True,
         gradient_clip_val=0.1,
-        callbacks=[lr_logger, early_stop_callback,
+        callbacks=[lr_logger,
+                   early_stop_callback,
                    ModelCheckpoint(save_weights_only=True),
                    GenerateCallbackForImageReconstruction(callback_data, every_n_epochs=1)],
         logger=logger)

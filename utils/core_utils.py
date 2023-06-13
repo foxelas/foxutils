@@ -332,7 +332,7 @@ def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column=
         for i, x in enumerate(use_interpolation):
             if x is not None:
                 interp_cols = dfs[i].columns.tolist()
-                [df[col].interpolate(x, inplace=True) for col in interp_cols]
+                [df[col].interpolate(method=x, inplace=True) for col in interp_cols]
     df.dropna(inplace=True)
     return df
 
