@@ -50,7 +50,9 @@ def get_lightning_checkpoint_path(lightning_log_dir, checkpoint_version):
 
 def get_lightning_checkpoint_file(lightning_log_dir, checkpoint_version, checkpoint_file):
     checkpoint_path = get_lightning_checkpoint_path(lightning_log_dir, checkpoint_version)
-    pretrained_filename = pathjoin(checkpoint_path, f"{checkpoint_file}.ckpt")
+    if '.' not in checkpoint_file:
+        checkpoint_file = checkpoint_file + '.ckpt'
+    pretrained_filename = pathjoin(checkpoint_path, checkpoint_file)
     return pretrained_filename
 
 
@@ -66,9 +68,12 @@ def pl_load_trained_model(target_model_class, save_name):
     return target_model
 
 
-def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path):
+def pl_load_trained_model_from_checkpoint(target_model, target_model_class, checkpoint_path):
     print(f'Model is loaded from checkpoint: {checkpoint_path}')
-    target_model = PredictionModel.load_from_checkpoint(checkpoint_path=checkpoint_path, model_class=target_model_class)
+    target_model = target_model.load_from_checkpoint(checkpoint_path=checkpoint_path, model_class=target_model_class)
+    checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
+    hyperparams = checkpoint["hyper_parameters"]
+    print(f'Loaded hyperparameters: {hyperparams}')
     target_model.eval()
     return target_model
 
@@ -100,7 +105,7 @@ def get_sgd_optimizer(self):
 
 class PredictionModel(pl.LightningModule):
     def __init__(self, model_class, task="binary", num_classes=2, num_labels=2, forward_function=get_binary_label,
-                 loss_fun=nn.BCELoss, configure_optimizers_fun=None, **model_hyperparameters):
+                 loss_fun=nn.BCELoss, configure_optimizers_fun=None, average='micro', **model_hyperparameters):
         super().__init__()
         self.save_hyperparameters(ignore=['loss_fun', 'model_class'])
         self.forward_function = forward_function
@@ -116,12 +121,19 @@ class PredictionModel(pl.LightningModule):
             self.automatic_optimization = False
             self.configure_optimizers = configure_optimizers_fun
 
-        self.train_precision = torchmetrics.Precision(task=task, num_classes=num_classes, num_labels=num_labels)
-        self.valid_precision = torchmetrics.Precision(task=task, num_classes=num_classes, num_labels=num_labels)
-        self.train_recall = torchmetrics.Recall(task=task, num_classes=num_classes, num_labels=num_labels)
-        self.valid_recall = torchmetrics.Recall(task=task, num_classes=num_classes, num_labels=num_labels)
-        self.train_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, num_labels=num_labels)
-        self.valid_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, num_labels=num_labels)
+        self.average = average
+        self.train_precision = torchmetrics.Precision(task=task, num_classes=num_classes,
+                                                      num_labels=num_labels, average=average)
+        self.valid_precision = torchmetrics.Precision(task=task, num_classes=num_classes,
+                                                      num_labels=num_labels, average=average)
+        self.train_recall = torchmetrics.Recall(task=task, num_classes=num_classes,
+                                                num_labels=num_labels, average=average)
+        self.valid_recall = torchmetrics.Recall(task=task, num_classes=num_classes,
+                                                num_labels=num_labels, average=average)
+        self.train_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes,
+                                               num_labels=num_labels, average=average)
+        self.valid_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes,
+                                               num_labels=num_labels, average=average)
 
     def forward(self, x):
         _, preds = self.forward_function(self.model, x)
@@ -130,46 +142,55 @@ class PredictionModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
         feature_vectors, labels = batch
-        outputs, preds = self.forward_function(self.model, feature_vectors)
 
-        loss = self.loss_fun(outputs, labels)
-        self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
-
-        self.train_acc(preds, labels)
-        self.log('train_acc', self.train_acc, prog_bar=True, on_step=False, on_epoch=True)
-
-        self.train_recall(preds, labels)
-        self.log('train_recall', self.train_recall, prog_bar=True, on_step=False, on_epoch=True)
-
-        self.train_precision(preds, labels)
-        self.log('train_precision', self.train_precision, prog_bar=True, on_step=False, on_epoch=True)
-
+        # zero the parameter gradients
         optimizer = self.optimizers()
         optimizer.zero_grad()
-        #self.manual_backward(loss)
-        optimizer.step()
 
-        sch = self.lr_schedulers()
-        sch.step()
+        with torch.set_grad_enabled(True):
+            outputs, preds = self.forward_function(self.model, feature_vectors)
+
+            loss = self.loss_fun(outputs, labels)
+            self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+            self.train_acc(preds, labels)
+            self.log('train_acc', self.train_acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+            self.train_recall(preds, labels)
+            self.log('train_recall', self.train_recall, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+            self.train_precision(preds, labels)
+            self.log('train_precision', self.train_precision, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+            # backward + optimize only if in training phase
+            self.manual_backward(loss)
+            optimizer.step()
+
         return loss
 
+    def on_train_epoch_end(self):
+        sch = self.lr_schedulers()
+        sch.step()
 
     def validation_step(self, batch, batch_idx):
         feature_vectors, labels = batch
         outputs, preds = self.forward_function(self.model, feature_vectors)
 
         loss = self.loss_fun(outputs, labels)
-        self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True, logger=True)
 
         self.valid_acc(preds, labels)
-        self.log('val_acc', self.valid_acc, prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_acc', self.valid_acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
 
         self.valid_recall(preds, labels)
-        self.log('val_recall', self.valid_recall, prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_recall', self.valid_recall, prog_bar=True, on_step=False, on_epoch=True, logger=True)
 
         self.valid_precision(preds, labels)
-        self.log('val_precision', self.valid_precision, prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_precision', self.valid_precision, prog_bar=True, on_step=False, on_epoch=True, logger=True)
         return loss
+
+    def configure_optimizers(self):
+        return self.configure_optimizers_fun()
 
 
 class ImageModel(pl.LightningModule):
@@ -284,7 +305,7 @@ class Autoencoder(pl.LightningModule):
 def train_predictive_model(target_model, lightning_log_dir, data_generators, epochs=2):
     lr_logger = LearningRateMonitor("epoch")
     logger = TensorBoardLogger(lightning_log_dir)
-    early_stop_callback = EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
+    early_stop_callback = EarlyStopping(monitor="val_acc", min_delta=1e-6, patience=5, verbose=True, mode="max")
 
     trainer = pl.Trainer(
         log_every_n_steps=4,
@@ -295,7 +316,7 @@ def train_predictive_model(target_model, lightning_log_dir, data_generators, epo
         callbacks=[lr_logger,
                    early_stop_callback,
                    PrintLossCallback(every_n_epochs=5),
-                   ModelCheckpoint(monitor='val_loss', save_weights_only=False)
+                   ModelCheckpoint(monitor='val_acc', save_weights_only=False)
                    ],
         logger=logger)
 
@@ -304,7 +325,7 @@ def train_predictive_model(target_model, lightning_log_dir, data_generators, epo
         train_dataloaders=data_generators["train"],
         val_dataloaders=data_generators["valid"])
 
-    return target_model
+    return target_model, trainer
 
 
 class PrintLossCallback(pl.Callback):
@@ -380,4 +401,4 @@ def train_image_reconstruction_model(target_model, lightning_log_dir, data_gener
     val_result = trainer.test(target_model, data_generators["valid"], verbose=False)
     test_result = trainer.test(target_model, data_generators["test"], verbose=False)
     result = {"test": test_result, "val": val_result}
-    return target_model, result
+    return target_model, result, trainer
