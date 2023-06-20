@@ -365,13 +365,15 @@ def make_multi_step_model(model_name, prediction_length=OUT_STEPS, num_output_fe
     return model, descr
 
 
-def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS):
+def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS, optimizer=None):
     early_stopping = tfEarlyStopping(monitor='val_loss',
                                      patience=patience,
                                      mode='min')
+    if optimizer is None:
+        optimizer=Adam()
 
     model.compile(loss=MeanSquaredErrorLoss(),
-                  optimizer=Adam(),
+                  optimizer=optimizer,
                   metrics=[MeanSquaredError(), MeanAbsoluteError(), RootMeanSquaredError(), MeanAbsolutePercentageError()])
 
     history = model.fit(window.train, epochs=max_epochs, verbose=0, validation_data=window.val,
@@ -380,11 +382,11 @@ def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS):
 
 
 def compile_and_evaluate(model, train_window_generator, plot_window_generator=None, target_column=None, descr=None,
-                         max_epochs=MAX_EPOCHS):
+                         max_epochs=MAX_EPOCHS, optimizer=None):
     if descr is not None:
         print(f'\n\n{descr}\n\n')
 
-    history = compile_and_fit(model, train_window_generator, max_epochs=max_epochs)
+    history = compile_and_fit(model, train_window_generator, max_epochs=max_epochs, optimizer=optimizer)
     val_perf = model.evaluate(train_window_generator.val)
     test_perf = model.evaluate(train_window_generator.test, verbose=0)
 
@@ -395,19 +397,19 @@ def compile_and_evaluate(model, train_window_generator, plot_window_generator=No
 
 
 def run_single_step_model(model_name, single_step_window, wide_window, target_column=None, output_column_id=None,
-                          conv_width=CONV_WIDTH, max_epochs=MAX_EPOCHS):
+                          conv_width=CONV_WIDTH, max_epochs=MAX_EPOCHS, optimizer=None):
     model, descr = make_single_step_model(model_name, conv_width, output_column_id)
     model, val_perf, test_perf, history = compile_and_evaluate(model, single_step_window, wide_window, target_column,
-                                                               descr, max_epochs)
+                                                               descr, max_epochs, optimizer)
     return model, val_perf, test_perf, history
 
 
 def run_multi_step_model(model_name, multi_window, prediction_length=OUT_STEPS, num_output_features=1, target_column=None,
                          output_column_id=-1, conv_width=CONV_WIDTH, memory_units=MEMORY_UNITS, num_features=1,
-                         max_epochs=MAX_EPOCHS):
+                         max_epochs=MAX_EPOCHS, optimizer=None):
     model, descr = make_multi_step_model(model_name, prediction_length, num_output_features, conv_width, memory_units,
                                          output_column_id, num_features)
     model, val_perf, test_perf, history = compile_and_evaluate(model, multi_window, multi_window, target_column,
-                                                               descr, max_epochs)
+                                                               descr, max_epochs, optimizer)
     return model, val_perf, test_perf, history
 
