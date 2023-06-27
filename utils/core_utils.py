@@ -34,9 +34,14 @@ settings_filename = 'config.ini'
 # Reads settings from file
 def read_config():
     config = configparser.ConfigParser()
+    c = 0
     filepath = ''
-    while not pathexists(pathjoin(filepath, settings_filename)):
+    while not pathexists(pathjoin(filepath, settings_filename)) and c < 20:
         filepath = pathjoin('..', filepath)
+        c = c + 1
+
+    if c == 20:
+        raise FileNotFoundError('Missing config.ini file!')
 
     filepath = pathjoin(filepath, settings_filename)
     config.read(filepath)
