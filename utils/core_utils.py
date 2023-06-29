@@ -59,6 +59,7 @@ extracted_folder = settings['DIRECTORY']['extracted_folder']
 
 is_test = settings['RUN']['is_test']
 test_suffix = '_test' if is_test else ''
+project_name = settings['RUN']['project_name']
 
 encoding = "utf-8"
 
@@ -136,6 +137,13 @@ def get_device():
 
 
 device = get_device()
+
+def show_gpu_settings():
+    print("Torch version:", torch.__version__)
+    print("CUDA version:", torch.version.cuda)
+    print("GPU availability:", torch.cuda.is_available())
+    print("Number of GPU devices:", torch.cuda.device_count())
+    print("Name of current GPU:", torch.cuda.get_device_name(0))
 
 
 def obj_size_fmt(num):
