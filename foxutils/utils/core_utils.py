@@ -37,7 +37,7 @@ def read_config():
     c = 0
     filepath = ''
     while not pathexists(pathjoin(filepath, settings_filename)) and c < 20:
-        filepath = pathjoin('..', filepath)
+        filepath = pathjoin('../..', filepath)
         c = c + 1
 
     if c == 20:

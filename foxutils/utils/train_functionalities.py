@@ -11,7 +11,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolu
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-from utils import core_utils, display_and_plot
+from foxutils.utils import core_utils, display_and_plot
 from .core_utils import SEED
 
 import pickle

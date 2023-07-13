@@ -1,7 +1,7 @@
 # Import / Install libraries
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from utils import core_utils
+from foxutils.utils import core_utils
 
 device = core_utils.device
 
