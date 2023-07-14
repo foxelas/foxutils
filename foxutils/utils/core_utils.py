@@ -4,14 +4,16 @@ import json
 import tarfile
 from datetime import datetime
 from os import listdir, remove, makedirs
-from os.path import join as pathjoin
 from os.path import exists as pathexists
-from os.path import normpath, isfile, dirname
+from os.path import join as pathjoin
+from os.path import normpath, isfile, dirname, split
 from sys import getsizeof
 import requests
 from pathlib import Path
 import re
 import glob
+from os import getcwd, sep
+
 
 import h5py
 import pandas as pd
@@ -62,6 +64,30 @@ test_suffix = '_test' if is_test else ''
 project_name = settings['RUN']['project_name']
 
 encoding = "utf-8"
+
+###########################################################
+base_folder = 'github'
+
+def get_package_path(name='foxutils'):
+    target_path = get_base_path()
+    target_path = target_path.split(sep)
+    target_path.insert(len(target_path), name)
+    target_path.insert(len(target_path), '')
+    target_path.insert(1, sep)
+    target_path = pathjoin(*target_path)
+    # target_path = pathjoin('..', '..', '..', 'foxutils', '')
+    return target_path
+
+def get_base_path():
+    cwd = getcwd()  # *\github\EMIA
+    target_path = normpath(cwd)
+    target_path = target_path.split(sep)
+    target_path = target_path[0:target_path.index(base_folder)+1]
+    target_path.insert(1, sep)
+    target_path = pathjoin(*target_path)
+    return target_path
+
+print(f'Default package path is {get_package_path()}')
 
 
 ###########################################################
