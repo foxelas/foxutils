@@ -1,4 +1,3 @@
-import matplotlib
 import matplotlib.pyplot as plt
 
 import matplotlib.dates as mdates
@@ -10,6 +9,13 @@ from shapely.geometry import Point
 import folium
 from folium import plugins
 
+import av
+import cv2
+import numpy as np
+from PIL import Image
+
+
+from os.path import join as pathjoin
 
 # matplotlib.use('Qt5Agg')
 
@@ -124,3 +130,28 @@ def plot_markers_on_map(center_coords, df, label_column='ID'):
         ).add_to(m)
 
     return m
+
+
+
+
+
+def display_first_frames_from_h264(filedir, filename):
+    if not '.h264' in filename:
+        filename = filename + ".h264"
+
+    file = pathjoin(filedir, filename)
+    print(f'\nReading from {file}\n')
+
+    container = av.open(file)
+    frames = []
+    for frame in container.decode(video=0):
+        frames.append(frame.to_image())
+        if len(frames) == 5:
+            break
+
+    for frame in frames:
+        img = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+        im_pil = Image.fromarray(img)
+        im_pil.show()
+
+
