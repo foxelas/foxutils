@@ -215,13 +215,12 @@ def get_request(link, **kwargs):
             success = True
 
     except requests.exceptions.ConnectionError as ce:
-        print('A ConnectionError occurred. Max retries exceeded with url: ... '
-              '(Caused by NewConnectionError: Failed to establish a new connection: '
-              '[Errno 11001] getaddrinfo failed')
+        print(f'A connection error occurred for {link}.')
         print(ce)
 
     except (MaxRetryError, NewConnectionError,
             requests.exceptions.NewConnectionError, requests.exceptions.SSLError) as ne:
+        print(f'A request error occurred for {link}.')
         print(ne)
 
     return success, r
