@@ -1,46 +1,38 @@
 import configparser
+import glob
 import gzip
 import json
-import os
+import re
 import tarfile
+import time
 from datetime import datetime
+from os import getcwd, sep
 from os import listdir, remove, makedirs
 from os.path import exists as pathexists
 from os.path import join as pathjoin
-from os.path import normpath, isfile, dirname, split
-from sys import getsizeof
-import requests
+from os.path import normpath, dirname
 from pathlib import Path
-import re
-import glob
-from os import getcwd, sep
 
-import h5py
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-import random
+import requests
 import torch
-import time
-
-from PIL import Image, ImageFile
 from urllib3.exceptions import MaxRetryError, NewConnectionError
-
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-from torchvision import transforms
 
 ###########################################################
 
 SEED = 42
 
-def initSeed(seed):
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    os.environ['IF_CUDNN_DETERMINISTIC'] = '1'  # for tf 2.0+
-    random.seed(seed)
-    rng = np.random.default_rng(seed)
-    tf.random.seed(seed)
 
 ###########################################################
+
+def get_device():
+    device_ = "cuda" if torch.cuda.is_available() else "cpu"
+    if __name__ == '__main__':
+        print(f'Running on {device_}')
+    return device_
+
+
+device = get_device()
+
 # The filename of the settings file
 settings_filename = 'config.ini'
 
@@ -167,46 +159,6 @@ def increment_path(path, exist_ok=True, sep=''):
         return f"{path}{sep}{n}"  # update path
 
 
-###########################################################
-# Memory
-
-def get_device():
-    device_ = "cuda" if torch.cuda.is_available() else "cpu"
-    if __name__ == '__main__':
-        print(f'Running on {device_}')
-    return device_
-
-
-device = get_device()
-
-
-def show_gpu_settings():
-    print("Torch version:", torch.__version__)
-    print("CUDA version:", torch.version.cuda)
-    print("GPU availability:", torch.cuda.is_available())
-    print("Number of GPU devices:", torch.cuda.device_count())
-    print("Name of current GPU:", torch.cuda.get_device_name(0))
-
-
-def obj_size_fmt(num):
-    if num < 10 ** 3:
-        return "{:.2f}{}".format(num, "B")
-    elif (num >= 10 ** 3) & (num < 10 ** 6):
-        return "{:.2f}{}".format(num / (1.024 * 10 ** 3), "KB")
-    elif (num >= 10 ** 6) & (num < 10 ** 9):
-        return "{:.2f}{}".format(num / (1.024 * 10 ** 6), "MB")
-    else:
-        return "{:.2f}{}".format(num / (1.024 * 10 ** 9), "GB")
-
-
-def memory_usage():
-    memory_usage_by_variable = pd.DataFrame({k: getsizeof(v) for (k, v) in globals().items()}, index=['Size'])
-    memory_usage_by_variable = memory_usage_by_variable.T
-    memory_usage_by_variable = memory_usage_by_variable.sort_values(by='Size', ascending=False).head(10)
-    memory_usage_by_variable['Size'] = memory_usage_by_variable['Size'].apply(lambda x: obj_size_fmt(x))
-    return memory_usage_by_variable
-
-
 def delete_files_by_extension(target_folder, target_extension):
     for filename in listdir(target_folder):
         # Check file extension
@@ -294,89 +246,6 @@ def extract_files_from_tar(file_dir, save_dir):
 
 
 ###########################################################
-# H5 files
-def all_keys(obj):
-    keys = (obj.name,)
-    if isinstance(obj, h5py.Group):
-        for key, value in obj.items():
-            if isinstance(value, h5py.Group):
-                keys = keys + all_keys(value)
-            else:
-                keys = keys + (value.name,)
-    return keys
-
-
-def print_keys_of_h5(filename):
-    with h5py.File(filename, "r") as f:
-        print(all_keys(f))
-
-
-def delete_keys_of_h5(filename, name):
-    with h5py.File(filename, "a") as f:
-        del f[name]
-
-
-def print_groups_of_h5(filename):
-    data = get_groups_of_h5(filename)
-    print(data)
-
-
-def join_h5_keys(values):
-    return "/".join(values)
-
-
-def get_groups_of_h5(filename):
-    with h5py.File(filename, "r") as f:
-        data = ["/" + x + "/" + y for x in list(f.keys()) for y in list(f[x])]
-        return data
-
-
-def split_and_convert_to_int(value):
-    try:
-        output = int(value.split('_')[-1])
-        return output
-    except:
-        return 0
-
-
-def get_relevant_keys(filename, groupname):
-    vals = get_groups_of_h5(filename)
-    current_vals = [split_and_convert_to_int(x) for x in vals if groupname in x]
-    relevant_keys = [groupname + '_' + str(x) for x in current_vals if x > 0]
-    return relevant_keys
-
-
-def save_dataset_to_h5(filename, groupname, data):
-    with h5py.File(filename, 'a') as h5f:
-        h5f.create_dataset(groupname, data=data)
-
-
-def load_dataset_from_h5(filename, groupname, idx=-1):
-    with h5py.File(filename, "r") as h5f:
-        if idx >= 0:
-            data = h5f[groupname][idx]
-        else:
-            data = h5f[groupname][()]
-        return data
-
-
-def save_in_h5(filename, groupname, df_, is_continuous=False):
-    if isfile(filename) and is_continuous:
-        vals = get_groups_of_h5(filename)
-        current_vals = [split_and_convert_to_int(x) for x in vals if groupname in x]
-        if current_vals:
-            last_number = max(current_vals)
-            save_groupname = groupname + '_' + str(last_number + 1)
-        else:
-            save_groupname = groupname + '_' + str(1)
-    else:
-        save_groupname = groupname
-
-    df_.to_hdf(filename, save_groupname)
-    print(f'Saved in key {save_groupname} at file {filename}')
-
-
-###########################################################
 # Apply function with filter
 def apply_function_with_filter(target_function, indexes, values, flags, group):
     if flags:
@@ -403,25 +272,6 @@ def pad_values(values, fixed_length, default_value):
 
 ##########################################################
 
-def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column='datetime', dropna=True):
-    dfs = [x.set_index([index_column]) for x in dfs]
-    df = pd.concat(dfs, join=method)
-    df.sort_index(inplace=True)
-
-    if use_interpolation is not None:
-        for i, x in enumerate(use_interpolation):
-            if x is not None:
-                interp_cols = dfs[i].columns.tolist()
-                [df[col].interpolate(method=x, inplace=True) for col in interp_cols]
-
-    if dropna:
-        df.dropna(inplace=True)
-
-    return df
-
-
-##########################################################
-
 def time_execution(target_function, **kwargs):
     start = time.time()
     target_function(**kwargs)
@@ -444,12 +294,3 @@ def flatten(l):
 
 
 #########################################################
-
-def read_image_to_tensor(filename, dataset_dir, im_height=None, im_width=None):
-    image = Image.open(pathjoin(dataset_dir, filename))
-    if im_width is not None and im_height is not None:
-        image = image.resize((im_height, im_width))
-    image = transforms.PILToTensor()(image)
-    image = image.float()
-    image /= 255.0
-    return image
