@@ -1,6 +1,7 @@
 import configparser
 import gzip
 import json
+import os
 import tarfile
 from datetime import datetime
 from os import listdir, remove, makedirs
@@ -14,9 +15,11 @@ import re
 import glob
 from os import getcwd, sep
 
-
 import h5py
 import pandas as pd
+import numpy as np
+import tensorflow as tf
+import random
 import torch
 import time
 
@@ -26,14 +29,19 @@ from urllib3.exceptions import MaxRetryError, NewConnectionError
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torchvision import transforms
 
-
 ###########################################################
 
 SEED = 42
+os.environ['PYTHONHASHSEED'] = str(SEED)
+os.environ['IF_CUDNN_DETERMINISTIC'] = '1'  # for tf 2.0+
+random.seed(SEED)
+np.random.seed(SEED)
+tf.random.seed(SEED)
 
 ###########################################################
 # The filename of the settings file
 settings_filename = 'config.ini'
+
 
 # Reads settings from file
 def read_config():
@@ -70,6 +78,7 @@ encoding = "utf-8"
 ###########################################################
 base_folder = 'github'
 
+
 def get_package_path(name='foxutils'):
     target_path = get_base_path()
     target_path = target_path.split(sep)
@@ -80,14 +89,16 @@ def get_package_path(name='foxutils'):
     # target_path = pathjoin('..', '..', '..', 'foxutils', '')
     return target_path
 
+
 def get_base_path():
     cwd = getcwd()  # *\github\EMIA
     target_path = normpath(cwd)
     target_path = target_path.split(sep)
-    target_path = target_path[0:target_path.index(base_folder)+1]
+    target_path = target_path[0:target_path.index(base_folder) + 1]
     target_path.insert(1, sep)
     target_path = pathjoin(*target_path)
     return target_path
+
 
 print(f'Default package path is {get_package_path()}')
 
@@ -165,6 +176,7 @@ def get_device():
 
 
 device = get_device()
+
 
 def show_gpu_settings():
     print("Torch version:", torch.__version__)
@@ -421,6 +433,7 @@ def mkdir_if_not_exist(target_path):
     target_path = dirname(target_path)
     if not pathexists(target_path):
         makedirs(target_path)
+
 
 #########################################################
 
