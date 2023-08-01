@@ -21,6 +21,8 @@ import torch
 import time
 
 from PIL import Image, ImageFile
+from urllib3.exceptions import MaxRetryError, NewConnectionError
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torchvision import transforms
 
@@ -201,10 +203,36 @@ def delete_files_by_extension(target_folder, target_extension):
 
 ###########################################################
 # IMG files
+
+def get_request(link, **kwargs):
+    success = False
+    r = None
+    try:
+        r = requests.get(link, **kwargs)
+        if r.status_code == 403:
+            print(f'Access denied for link {link}')
+        else:
+            success = True
+
+    except requests.exceptions.ConnectionError as ce:
+        print('A ConnectionError occurred. Max retries exceeded with url: ... '
+              '(Caused by NewConnectionError: Failed to establish a new connection: '
+              '[Errno 11001] getaddrinfo failed')
+        print(ce)
+
+    except (MaxRetryError, NewConnectionError,
+            requests.exceptions.NewConnectionError, requests.exceptions.SSLError) as ne:
+        print(ne)
+
+    return success, r
+
+
 def save_image_from_link(image_url, image_name='img.jpg'):
-    img_data = requests.get(image_url).content
-    with open(image_name, 'wb') as handler:
-        handler.write(img_data)
+    success, r = get_request(image_url)
+    if success:
+        img_data = r.content
+        with open(image_name, 'wb') as handler:
+            handler.write(img_data)
 
 
 ###########################################################
