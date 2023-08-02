@@ -94,7 +94,7 @@ def get_base_path():
     return target_path
 
 
-print(f'Default package path is {get_package_path()}')
+# print(f'Default package path is {get_package_path()}')
 
 
 ###########################################################
