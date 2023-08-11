@@ -122,17 +122,17 @@ class PredictionModel(pl.LightningModule):
             self.configure_optimizers = configure_optimizers_fun
 
         self.average = average
-        self.train_precision = torchmetrics.Precision(task=task, num_classes=num_classes,
+        self.train_precision = torchmetrics.Precision(task=task, num_classes=num_classes, top_k=1,
                                                       num_labels=num_labels, average=average)
-        self.valid_precision = torchmetrics.Precision(task=task, num_classes=num_classes,
+        self.valid_precision = torchmetrics.Precision(task=task, num_classes=num_classes, top_k=1,
                                                       num_labels=num_labels, average=average)
-        self.train_recall = torchmetrics.Recall(task=task, num_classes=num_classes,
+        self.train_recall = torchmetrics.Recall(task=task, num_classes=num_classes, top_k=1,
                                                 num_labels=num_labels, average=average)
-        self.valid_recall = torchmetrics.Recall(task=task, num_classes=num_classes,
+        self.valid_recall = torchmetrics.Recall(task=task, num_classes=num_classes, top_k=1,
                                                 num_labels=num_labels, average=average)
-        self.train_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes,
+        self.train_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, top_k=1,
                                                num_labels=num_labels, average=average)
-        self.valid_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes,
+        self.valid_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, top_k=1,
                                                num_labels=num_labels, average=average)
 
     def forward(self, x):
@@ -152,15 +152,19 @@ class PredictionModel(pl.LightningModule):
 
             loss = self.loss_fun(outputs, labels)
             self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            self.logger.experiment.add_scalars('loss', {'train': loss}, self.global_step)
 
-            self.train_acc(preds, labels)
-            self.log('train_acc', self.train_acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            acc = self.train_acc(preds, labels)
+            self.log('train_acc', acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            self.logger.experiment.add_scalars('acc', {'train': acc}, self.global_step)
 
-            self.train_recall(preds, labels)
-            self.log('train_recall', self.train_recall, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            rc = self.train_recall(preds, labels)
+            self.log('train_recall', rc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            self.logger.experiment.add_scalars('recall', {'train': rc}, self.global_step)
 
-            self.train_precision(preds, labels)
-            self.log('train_precision', self.train_precision, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            pc = self.train_precision(preds, labels)
+            self.log('train_precision', pc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+            self.logger.experiment.add_scalars('precision', {'train': pc}, self.global_step)
 
             # backward + optimize only if in training phase
             self.manual_backward(loss)
@@ -178,15 +182,20 @@ class PredictionModel(pl.LightningModule):
 
         loss = self.loss_fun(outputs, labels)
         self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        self.logger.experiment.add_scalars('loss', {'valid': loss}, self.global_step)
 
-        self.valid_acc(preds, labels)
-        self.log('val_acc', self.valid_acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        acc = self.valid_acc(preds, labels)
+        self.log('val_acc', acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        self.logger.experiment.add_scalars('acc', {'valid': acc}, self.global_step)
 
-        self.valid_recall(preds, labels)
-        self.log('val_recall', self.valid_recall, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        rc = self.valid_recall(preds, labels)
+        self.log('val_recall', rc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        self.logger.experiment.add_scalars('recall', {'valid': rc}, self.global_step)
 
-        self.valid_precision(preds, labels)
-        self.log('val_precision', self.valid_precision, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        pc = self.valid_precision(preds, labels)
+        self.log('val_precision', pc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+        self.logger.experiment.add_scalars('precision', {'valid': pc}, self.global_step)
+
         return loss
 
     def configure_optimizers(self):

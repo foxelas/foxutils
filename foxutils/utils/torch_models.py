@@ -8,7 +8,7 @@ import torchvision
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
-from .core_utils import read_image_to_tensor
+from .image_utils import read_image_to_tensor
 
 #############################################
 # Autoencoder

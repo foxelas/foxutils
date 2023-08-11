@@ -3,12 +3,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from sklearn.metrics import ConfusionMatrixDisplay
 
-import geopandas as gpd
-from shapely.geometry import Point
-
-import folium
-from folium import plugins
-
 import av
 import cv2
 import numpy as np
@@ -101,6 +95,9 @@ def plot_loss_per_epoch(train_vals, test_vals, plot_title="Loss per Epoch", lege
 
 
 def plot_coords_on_map(streetmap_file, df, label_column='ID', crs='epsg:4326'):
+    import geopandas as gpd
+    from shapely.geometry import Point
+
     street_map = gpd.read_file(streetmap_file)
     long = df['Longitude'].values
     lat = df['Latitude'].values
@@ -116,6 +113,10 @@ def plot_coords_on_map(streetmap_file, df, label_column='ID', crs='epsg:4326'):
 
 
 def plot_markers_on_map(center_coords, df, label_column='ID'):
+
+    import folium
+    from folium import plugins
+
     m = folium.Map(location=center_coords)
 
     long = df['Longitude'].values
