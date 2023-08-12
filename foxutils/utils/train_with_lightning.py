@@ -6,6 +6,7 @@ from os.path import isfile, splitext
 
 # PyTorch
 import torch
+from torch import Tensor
 from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
@@ -16,6 +17,15 @@ import torchvision
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
+
+# Kornia
+from kornia import image_to_tensor, tensor_to_image
+from kornia import augmentation
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 import warnings
 
@@ -103,11 +113,46 @@ def get_sgd_optimizer(self):
     return optimizer
 
 
+def get_conf_matrix_fig(cm):
+    df_cm = pd.DataFrame(cm)
+    plt.figure(figsize=(10, 7))
+    fig_ = sns.heatmap(df_cm, annot=True, cmap='Spectral', fmt='d').get_figure()
+    plt.close(fig_)
+    return fig_
+
+class DataAugmentation(nn.Module):
+    """Module to perform data augmentation using Kornia on torch tensors."""
+
+    def __init__(self, apply_color_jitter: bool = False) -> None:
+        super().__init__()
+        self._apply_color_jitter = apply_color_jitter
+
+        self.transforms = nn.Sequential(
+            augmentation.RandomHorizontalFlip(p=0.5),
+            augmentation.RandomRotation(degrees=5.0, p=0.5),
+            #augmentation.RandomBrightness(p=0.75),
+            augmentation.RandomPerspective(0.1, p=0.5),
+            augmentation.RandomThinPlateSpline(scale=0.1, p=0.5),
+        )
+
+        self.jitter = augmentation.ColorJitter(0.5, 0.5, 0.5, 0.5)
+
+    @torch.no_grad()  # disable gradients for effiency
+    def forward(self, x: Tensor) -> Tensor:
+        x_out = self.transforms(x)  # BxCxHxW
+        if self._apply_color_jitter:
+            x_out = self.jitter(x_out)
+        return x_out
+
+
 class PredictionModel(pl.LightningModule):
     def __init__(self, model_class, task="binary", num_classes=2, num_labels=2, forward_function=get_binary_label,
-                 loss_fun=nn.BCELoss, configure_optimizers_fun=None, average='micro', **model_hyperparameters):
+                 loss_fun=nn.BCELoss, configure_optimizers_fun=None, average='micro', has_augmentation=False,
+                 **model_hyperparameters):
         super().__init__()
         self.save_hyperparameters(ignore=['loss_fun', 'model_class'])
+        self.has_augmentation = has_augmentation
+        self.transform = DataAugmentation()  # per batch augmentation_kornia
         self.forward_function = forward_function
         self.loss_fun = loss_fun  # F.binary_cross_entropy()
         if len(model_hyperparameters) == 0:
@@ -134,10 +179,43 @@ class PredictionModel(pl.LightningModule):
                                                num_labels=num_labels, average=average)
         self.valid_acc = torchmetrics.Accuracy(task=task, num_classes=num_classes, top_k=1,
                                                num_labels=num_labels, average=average)
+        self.train_cm = torchmetrics.ConfusionMatrix(num_classes=num_classes)
+        self.valid_cm = torchmetrics.ConfusionMatrix(num_classes=num_classes)
+
+        self.training_step_preds = []
+        self.training_step_labels = []
+
+        self.validation_step_preds = []
+        self.validation_step_labels = []
+
 
     def forward(self, x):
         _, preds = self.forward_function(self.model, x)
         return preds
+
+    def show_batch(self, dataloader, win_size=(10, 10), transform = None):
+        def _to_vis(data):
+            if transform is not None:
+                data = [transform(x) for x in data]
+            return tensor_to_image(torchvision.utils.make_grid(data, nrow=8))
+
+        imgs, labels = next(iter(dataloader))
+        if self.has_augmentation:
+            imgs_aug = self.transform(imgs)  # apply transforms
+        else:
+            imgs_aug = imgs
+
+        # use matplotlib to visualize
+        plt.figure(figsize=win_size)
+        plt.imshow(_to_vis(imgs))
+        plt.figure(figsize=win_size)
+        plt.imshow(_to_vis(imgs_aug))
+
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        x, y = batch
+        if self.trainer.training and self.has_augmentation:
+            x = self.transform(x)  # => we perform GPU/Batched data augmentation
+        return x, y
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
@@ -154,25 +232,40 @@ class PredictionModel(pl.LightningModule):
             self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True, logger=True)
             self.logger.experiment.add_scalars('loss', {'train': loss}, self.global_step)
 
-            acc = self.train_acc(preds, labels)
-            self.log('train_acc', acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
-            self.logger.experiment.add_scalars('acc', {'train': acc}, self.global_step)
-
-            rc = self.train_recall(preds, labels)
-            self.log('train_recall', rc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
-            self.logger.experiment.add_scalars('recall', {'train': rc}, self.global_step)
-
-            pc = self.train_precision(preds, labels)
-            self.log('train_precision', pc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
-            self.logger.experiment.add_scalars('precision', {'train': pc}, self.global_step)
-
             # backward + optimize only if in training phase
             self.manual_backward(loss)
             optimizer.step()
 
+            self.training_step_preds.append(preds)
+            self.training_step_labels.append(labels)
+
         return loss
 
     def on_train_epoch_end(self):
+        preds = torch.cat(self.training_step_preds)
+        labels = torch.cat(self.training_step_labels)
+
+        acc = self.train_acc(preds, labels)
+        self.logger.experiment.add_scalars('acc', {'train': acc}, self.global_step)
+        self.log('train_acc', acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+        rc = self.train_recall(preds, labels)
+        self.logger.experiment.add_scalars('recall', {'train': rc}, self.global_step)
+        self.log('train_recall', rc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+        pc = self.train_precision(preds, labels)
+        self.logger.experiment.add_scalars('precision', {'train': pc}, self.global_step)
+        self.log('train_precision', pc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+        cm = self.train_cm(preds, labels)
+        computed_confusion = cm.detach().cpu().numpy().astype(int)
+        fig_ = get_conf_matrix_fig(computed_confusion)
+        self.logger.experiment.add_figure("Train Confusion Matrix", fig_, self.current_epoch)
+
+        # Free memory
+        self.training_step_preds.clear()
+        self.training_step_labels.clear()
+
         sch = self.lr_schedulers()
         sch.step()
 
@@ -184,19 +277,36 @@ class PredictionModel(pl.LightningModule):
         self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True, logger=True)
         self.logger.experiment.add_scalars('loss', {'valid': loss}, self.global_step)
 
-        acc = self.valid_acc(preds, labels)
-        self.log('val_acc', acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
-        self.logger.experiment.add_scalars('acc', {'valid': acc}, self.global_step)
-
-        rc = self.valid_recall(preds, labels)
-        self.log('val_recall', rc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
-        self.logger.experiment.add_scalars('recall', {'valid': rc}, self.global_step)
-
-        pc = self.valid_precision(preds, labels)
-        self.log('val_precision', pc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
-        self.logger.experiment.add_scalars('precision', {'valid': pc}, self.global_step)
+        self.validation_step_preds.append(preds)
+        self.validation_step_labels.append(labels)
 
         return loss
+
+    def on_validation_epoch_end(self):
+        preds = torch.cat(self.validation_step_preds)
+        labels = torch.cat(self.validation_step_labels)
+
+        acc = self.valid_acc(preds, labels)
+        self.logger.experiment.add_scalars('acc', {'valid': acc}, self.global_step)
+        self.log('val_acc', acc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+        rc = self.valid_recall(preds, labels)
+        self.logger.experiment.add_scalars('recall', {'valid': rc}, self.global_step)
+        self.log('val_recall', rc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+        pc = self.valid_precision(preds, labels)
+        self.logger.experiment.add_scalars('precision', {'valid': pc}, self.global_step)
+        self.log('val_precision', pc, prog_bar=True, on_step=False, on_epoch=True, logger=True)
+
+        cm = self.valid_cm(preds, labels)
+        computed_confusion = cm.detach().cpu().numpy().astype(int)
+        fig_ = get_conf_matrix_fig(computed_confusion)
+        self.logger.experiment.add_figure("Valid Confusion Matrix", fig_, self.current_epoch)
+
+        # Free memory
+        self.validation_step_preds.clear()
+        self.validation_step_labels.clear()
+
 
     def configure_optimizers(self):
         return self.configure_optimizers_fun()
@@ -311,10 +421,20 @@ class Autoencoder(pl.LightningModule):
 #################################################################################
 # Lightning Training
 
-def train_predictive_model(target_model, lightning_log_dir, data_generators, epochs=2):
+def train_predictive_model(target_model, lightning_log_dir, data_generators, epochs=2, early_stopping_patience=5):
     lr_logger = LearningRateMonitor("epoch")
     logger = TensorBoardLogger(lightning_log_dir)
-    early_stop_callback = EarlyStopping(monitor="val_acc", min_delta=1e-6, patience=5, verbose=True, mode="max")
+
+    callbacks = [lr_logger,
+                 PrintLossCallback(every_n_epochs=5),
+                 ModelCheckpoint(monitor='val_acc', save_weights_only=False)
+                 ]
+
+    if early_stopping_patience is not None:
+        print(f'Early stop callback with patience {early_stopping_patience} enabled')
+        early_stop_callback = EarlyStopping(monitor="val_acc", min_delta=1e-6, patience=early_stopping_patience,
+                                            verbose=True, mode="max")
+        callbacks.append(early_stop_callback)
 
     trainer = pl.Trainer(
         log_every_n_steps=4,
@@ -322,11 +442,7 @@ def train_predictive_model(target_model, lightning_log_dir, data_generators, epo
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
-        callbacks=[lr_logger,
-                   early_stop_callback,
-                   PrintLossCallback(every_n_epochs=5),
-                   ModelCheckpoint(monitor='val_acc', save_weights_only=False)
-                   ],
+        callbacks=callbacks,
         logger=logger)
 
     trainer.fit(
