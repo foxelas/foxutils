@@ -78,9 +78,10 @@ def pl_load_trained_model(target_model_class, save_name):
     return target_model
 
 
-def pl_load_trained_model_from_checkpoint(target_model, target_model_class, checkpoint_path):
+# PyTorch Lightning >= 2.0
+def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params):
     print(f'Model is loaded from checkpoint: {checkpoint_path}')
-    target_model = target_model.load_from_checkpoint(checkpoint_path=checkpoint_path, model_class=target_model_class)
+    target_model = target_model_class.load_from_checkpoint(checkpoint_path=checkpoint_path, **model_params)
     checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
     hyperparams = checkpoint["hyper_parameters"]
     print(f'Loaded hyperparameters: {hyperparams}')
@@ -113,12 +114,28 @@ def get_sgd_optimizer(self):
     return optimizer
 
 
-def get_conf_matrix_fig(cm):
+def get_conf_matrix_fig(cm, class_mapping=None):
     df_cm = pd.DataFrame(cm)
+    if class_mapping:
+        inv_map = {v: k for k, v in class_mapping.items()}
+        df_cm.rename(columns=inv_map, index=inv_map, inplace=True)
+
     plt.figure(figsize=(10, 7))
     fig_ = sns.heatmap(df_cm, annot=True, cmap='Spectral', fmt='d').get_figure()
     plt.close(fig_)
     return fig_
+
+
+# Define a custom weight initialization function
+def custom_weights_init(layer):
+    if isinstance(layer, nn.Linear):
+        layer.reset_parameters()
+        # nn.init.xavier_uniform_(layer.weight)
+        # layer.bias.data.fill_(0.01)
+
+    if isinstance(layer, nn.Conv2d):
+        layer.reset_parameters()
+
 
 class DataAugmentation(nn.Module):
     """Module to perform data augmentation using Kornia on torch tensors."""
@@ -129,10 +146,10 @@ class DataAugmentation(nn.Module):
 
         self.transforms = nn.Sequential(
             augmentation.RandomHorizontalFlip(p=0.5),
-            augmentation.RandomRotation(degrees=5.0, p=0.5),
-            #augmentation.RandomBrightness(p=0.75),
-            augmentation.RandomPerspective(0.1, p=0.5),
-            augmentation.RandomThinPlateSpline(scale=0.1, p=0.5),
+            augmentation.RandomRotation(degrees=10.0, p=0.5, keepdim=True),
+            # augmentation.RandomBrightness(p=0.75),
+            augmentation.RandomPerspective(0.1, p=0.5, keepdim=True),
+            # augmentation.RandomThinPlateSpline(scale=0.1, p=0.5),
         )
 
         self.jitter = augmentation.ColorJitter(0.5, 0.5, 0.5, 0.5)
@@ -148,9 +165,10 @@ class DataAugmentation(nn.Module):
 class PredictionModel(pl.LightningModule):
     def __init__(self, model_class, task="binary", num_classes=2, num_labels=2, forward_function=get_binary_label,
                  loss_fun=nn.BCELoss, configure_optimizers_fun=None, average='micro', has_augmentation=False,
-                 **model_hyperparameters):
+                 class_mapping=None, **model_hyperparameters):
         super().__init__()
         self.save_hyperparameters(ignore=['loss_fun', 'model_class'])
+        self.class_mapping = class_mapping
         self.has_augmentation = has_augmentation
         self.transform = DataAugmentation()  # per batch augmentation_kornia
         self.forward_function = forward_function
@@ -188,12 +206,11 @@ class PredictionModel(pl.LightningModule):
         self.validation_step_preds = []
         self.validation_step_labels = []
 
-
     def forward(self, x):
         _, preds = self.forward_function(self.model, x)
         return preds
 
-    def show_batch(self, dataloader, win_size=(10, 10), transform = None):
+    def show_batch(self, dataloader, win_size=(10, 10), transform=None):
         def _to_vis(data):
             if transform is not None:
                 data = [transform(x) for x in data]
@@ -259,7 +276,7 @@ class PredictionModel(pl.LightningModule):
 
         cm = self.train_cm(preds, labels)
         computed_confusion = cm.detach().cpu().numpy().astype(int)
-        fig_ = get_conf_matrix_fig(computed_confusion)
+        fig_ = get_conf_matrix_fig(computed_confusion, self.class_mapping)
         self.logger.experiment.add_figure("Train Confusion Matrix", fig_, self.current_epoch)
 
         # Free memory
@@ -300,13 +317,12 @@ class PredictionModel(pl.LightningModule):
 
         cm = self.valid_cm(preds, labels)
         computed_confusion = cm.detach().cpu().numpy().astype(int)
-        fig_ = get_conf_matrix_fig(computed_confusion)
+        fig_ = get_conf_matrix_fig(computed_confusion, self.class_mapping)
         self.logger.experiment.add_figure("Valid Confusion Matrix", fig_, self.current_epoch)
 
         # Free memory
         self.validation_step_preds.clear()
         self.validation_step_labels.clear()
-
 
     def configure_optimizers(self):
         return self.configure_optimizers_fun()
@@ -421,13 +437,17 @@ class Autoencoder(pl.LightningModule):
 #################################################################################
 # Lightning Training
 
-def train_predictive_model(target_model, lightning_log_dir, data_generators, epochs=2, early_stopping_patience=5):
+def train_predictive_model(target_model_class, lightning_log_dir, data_generators, epochs=2, early_stopping_patience=5,
+                           **model_params):
+
+    target_model = target_model_class(**model_params)
+
     lr_logger = LearningRateMonitor("epoch")
     logger = TensorBoardLogger(lightning_log_dir)
 
     callbacks = [lr_logger,
                  PrintLossCallback(every_n_epochs=5),
-                 ModelCheckpoint(monitor='val_acc', save_weights_only=False)
+                 ModelCheckpoint(monitor='val_acc', save_top_k=1, save_weights_only=False, mode='max')
                  ]
 
     if early_stopping_patience is not None:
@@ -449,6 +469,10 @@ def train_predictive_model(target_model, lightning_log_dir, data_generators, epo
         target_model,
         train_dataloaders=data_generators["train"],
         val_dataloaders=data_generators["valid"])
+
+    checkpoint_path = trainer.checkpoint_callback.best_model_path
+    print('Loading model from the best path: ', checkpoint_path)
+    target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
 
     return target_model, trainer
 
@@ -487,8 +511,12 @@ class GenerateCallbackForImageReconstruction(pl.Callback):
             trainer.logger.experiment.add_image("Reconstructions", grid, global_step=trainer.global_step)
 
 
-def train_image_reconstruction_model(target_model, lightning_log_dir, data_generators, epochs=2, has_checkpoint=False,
-                                     checkpoint_path=None, pretrained_filename=None, callback_data=None):
+def train_image_reconstruction_model(target_model_class, lightning_log_dir, data_generators, epochs=2,
+                                     has_checkpoint=False, checkpoint_path=None, pretrained_filename=None,
+                                     callback_data=None, **model_params):
+
+    target_model = target_model_class(**model_params)
+
     lr_logger = LearningRateMonitor("epoch")
     logger = TensorBoardLogger(lightning_log_dir)
     early_stop_callback = EarlyStopping(monitor="val_mse_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
@@ -502,7 +530,7 @@ def train_image_reconstruction_model(target_model, lightning_log_dir, data_gener
         gradient_clip_val=0.1,
         callbacks=[lr_logger,
                    early_stop_callback,
-                   ModelCheckpoint(save_weights_only=True),
+                   ModelCheckpoint(monitor='val_acc', save_top_k=1, save_weights_only=False, mode='max'),
                    GenerateCallbackForImageReconstruction(callback_data, every_n_epochs=1)],
         logger=logger)
 
@@ -514,13 +542,15 @@ def train_image_reconstruction_model(target_model, lightning_log_dir, data_gener
         print("Found pretrained model, loading...")
 
         target_model = target_model.load_from_checkpoint(pretrained_filename)
-        # target_model = load_and_train.pl_load_trained_model_from_checkpoint(model_class, checkpoint_path)
-        checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
-        hyperparams = checkpoint["hyper_parameters"]
-        print(f'Loaded hyperparameters: {hyperparams}')
+        #target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
 
     else:
         trainer.fit(target_model, data_generators["train"], data_generators["valid"])
+
+        checkpoint_path = trainer.checkpoint_callback.best_model_path
+        print('Loading model from the best path: ', checkpoint_path)
+        target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
+
 
     # Test best model on validation and test set
     val_result = trainer.test(target_model, data_generators["valid"], verbose=False)
