@@ -471,7 +471,6 @@ def train_predictive_model(target_model_class, lightning_log_dir, data_generator
         val_dataloaders=data_generators["valid"])
 
     checkpoint_path = trainer.checkpoint_callback.best_model_path
-    print('Loading model from the best path: ', checkpoint_path)
     target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
 
     return target_model, trainer
