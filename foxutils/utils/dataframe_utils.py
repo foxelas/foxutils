@@ -1,5 +1,5 @@
 import pandas as pd
-
+import numpy as np
 ##########################################################
 
 def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column='datetime', dropna=True):
@@ -17,3 +17,15 @@ def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column=
         df.dropna(inplace=True)
 
     return df
+
+def check_for_missing_dates(df):
+    timestamps = df['datetime']
+    diffs = np.diff(timestamps)
+    un_diffs, un_counts = np.unique(diffs, return_counts=True)
+    un_diffs = np.delete(un_diffs, np.argmax(un_counts))
+    for val in un_diffs:
+        idx = np.where(diffs == val)[0]
+        for i in idx:
+            print(f"Missing values between {df.iloc[i]['datetime']} and {df.iloc[i + 1]['datetime']} ")
+
+    print("")
