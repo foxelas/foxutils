@@ -28,7 +28,7 @@ output_threshold = 0.5
 
 settings = core_utils.settings
 datasets_dir = core_utils.datasets_dir
-models_dir = core_utils.models_dir
+default_models_dir = core_utils.models_dir
 token_dir = core_utils.token_dir
 preprocessed_folder = core_utils.preprocessed_folder
 extracted_folder = core_utils.extracted_folder
@@ -182,9 +182,8 @@ def get_error_metrics(actual, pred):
 ###############################################################
 
 
-def save_trained_model(target_model, save_name):
+def save_trained_model(target_model, save_name, models_dir = default_models_dir):
     save_name, save_ext = splitext(save_name)
-
     filename = pathjoin(models_dir, save_name + '.pts')
     core_utils.mkdir_if_not_exist(filename)
 
@@ -192,7 +191,7 @@ def save_trained_model(target_model, save_name):
     print(f'Model is saved at location: {filename}')
 
 
-def load_trained_model(target_model_class, save_name):
+def load_trained_model(target_model_class, save_name, models_dir = default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pts')
     print(f'Model is loaded from location: {filename}')
@@ -202,7 +201,7 @@ def load_trained_model(target_model_class, save_name):
     target_model.eval()
     return target_model
 
-def pickle_model(target_model, save_name):
+def pickle_model(target_model, save_name, models_dir = default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pkl')
     f = open(filename, "wb")
@@ -210,7 +209,7 @@ def pickle_model(target_model, save_name):
     f.close()
     print(f'Model is saved at location: {filename}')
 
-def unpickle_model(save_name):
+def unpickle_model(save_name, models_dir = default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pkl')
     target_model = pickle.loads(open(filename, "rb").read())

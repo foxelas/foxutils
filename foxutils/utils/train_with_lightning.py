@@ -66,20 +66,20 @@ def get_lightning_checkpoint_file(lightning_log_dir, checkpoint_version, checkpo
     return pretrained_filename
 
 
-def pl_load_trained_model(target_model_class, save_name):
-    save_name, save_ext = splitext(save_name)
-    if save_ext is None:
-        save_ext = 'pts'
-    filename = pathjoin(models_dir, save_name + '.' + save_ext)
-    print(f'Model is loaded from location: {filename}')
-    target_model = PredictionModel(target_model_class)
-    target_model.load_state_dict(torch.load(filename))
+def pl_load_trained_model(target_model_class, weight_path, **model_params):
+    weight_path_file, weight_path_ext = splitext(weight_path)
+    assert weight_path_ext == '.pts', True
+    print(f'Model is loaded from location: {weight_path}')
+    target_model = target_model_class(**model_params)
+    target_model.load_state_dict(torch.load(weight_path))
     target_model.eval()
     return target_model
 
 
 # PyTorch Lightning >= 2.0
 def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params):
+    checkpoint_path_file, checkpoint_path_ext = splitext(checkpoint_path)
+    assert checkpoint_path_ext == '.ckpt', True
     print(f'Model is loaded from checkpoint: {checkpoint_path}')
     target_model = target_model_class.load_from_checkpoint(checkpoint_path=checkpoint_path, **model_params)
     checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
