@@ -378,7 +378,7 @@ def compile_and_fit(model, window, patience=2, max_epochs=MAX_EPOCHS, optimizer=
 
     history = model.fit(window.train, epochs=max_epochs, verbose=0, validation_data=window.val,
                         callbacks=[early_stopping])
-    return history
+    return model, history
 
 
 def compile_and_evaluate(model, train_window_generator, plot_window_generator=None, target_column=None, descr=None,
@@ -386,7 +386,7 @@ def compile_and_evaluate(model, train_window_generator, plot_window_generator=No
     if descr is not None:
         print(f'\n\n{descr}\n\n')
 
-    history = compile_and_fit(model, train_window_generator, max_epochs=max_epochs, optimizer=optimizer)
+    model, history = compile_and_fit(model, train_window_generator, max_epochs=max_epochs, optimizer=optimizer)
     val_perf = model.evaluate(train_window_generator.val)
     test_perf = model.evaluate(train_window_generator.test, verbose=0)
 
