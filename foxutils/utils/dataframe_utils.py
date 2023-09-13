@@ -11,8 +11,10 @@ def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column=
         for i, x in enumerate(use_interpolation):
             if x is not None:
                 interp_cols = dfs[i].columns.tolist()
-                [df[col].interpolate(method=x, inplace=True) for col in interp_cols]
-
+                if x == 'nearest':
+                    [df[col].interpolate(method=x, fill_value='extrapolate', inplace=True) for col in interp_cols]
+                else:
+                    [df[col].interpolate(method=x, inplace=True) for col in interp_cols]
     if dropna:
         df.dropna(inplace=True)
 
