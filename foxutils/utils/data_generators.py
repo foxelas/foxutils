@@ -105,7 +105,10 @@ def example(self):
     result = getattr(self, '_example', None)
     if result is None:
         # No example batch was found, so get one from the `.test` dataset
-        result = next(iter(self.test))
+        try:
+            result = next(iter(self.test))
+        except StopIteration:
+            result = self.test.take(1)
         # And cache it for next time
         self._example = result
     return result

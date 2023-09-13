@@ -237,6 +237,18 @@ def apply_scaling(df, scaler, has_fit=True):
     return scaler, df_
 
 
+def inverse_scaling(df, scaler):
+    numeric_cols = scaler.get_feature_names_out()
+    missing_cols =[x for x in numeric_cols if x not in df.columns]
+    for x in missing_cols:
+        df[x] = 0
+
+    numeric_cols = df.columns
+    df_ = scaler.inverse_transform(df)
+    df_ = pd.DataFrame(df_, columns=numeric_cols)
+    return df_
+
+
 def make_train_val_test(data_df, val_size=0.3, test_size=0.05):
     train_df, val_df = train_test_split(data_df, test_size=val_size, random_state=SEED, shuffle=False)
     train_df, test_df = train_test_split(train_df, test_size=test_size, random_state=SEED, shuffle=False)
