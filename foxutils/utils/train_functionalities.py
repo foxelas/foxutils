@@ -243,7 +243,7 @@ def inverse_scaling(df, scaler):
     for x in missing_cols:
         df[x] = 0
 
-    numeric_cols = df.columns
+    df = df.reindex(numeric_cols, axis=1)
     df_ = scaler.inverse_transform(df)
     df_ = pd.DataFrame(df_, columns=numeric_cols)
     return df_
