@@ -1,4 +1,5 @@
 from tensorflow import stack
+import tensorflow as tf
 from tensorflow.keras.utils import timeseries_dataset_from_array
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,11 +27,26 @@ def split_window(self, features):
 
 class WindowGenerator:
     def __init__(self, input_width, label_width, shift, train_df=None, val_df=None, test_df=None, label_columns=None,
-                 batch_size=BATCH_SIZE):
-        # Store the raw data.
+                 train_size=None, val_size=None, test_size=None, batch_size=BATCH_SIZE, shuffle=False):
+        # Either give train, val_df, test_df or train_size, val_size, test_size
+
         self.train_df = train_df
         self.val_df = val_df
         self.test_df = test_df
+
+        if (train_size is None or val_size is None or test_size is None) and (
+                train_size is not None and val_size is not None and test_size is not None):
+            raise Exception("Either give train, val_df, test_df or train_size, val_size, test_size")
+
+        self.train_size = train_size
+        self.val_size = val_size
+        self.test_size = test_size
+        self.shuffle = shuffle
+
+        if type(train_df) is dict:
+            self.features = train_df[list(train_df.keys())[0]].columns
+        else:
+            self.features = train_df.columns
 
         # Work out the label column indices.
         self.label_columns = label_columns
@@ -38,13 +54,17 @@ class WindowGenerator:
             self.label_columns_indices = {name: i for i, name in
                                           enumerate(label_columns)}
         self.column_indices = {name: i for i, name in
-                               enumerate(train_df.columns)}
+                               enumerate(self.features)}
 
         # Work out the window parameters.
         self.input_width = input_width
         self.label_width = label_width
         self.shift = shift
         self.batch_size = batch_size
+        self.total_batches = None
+        self.train_batches = None
+        self.val_batches = None
+        self.test_batches = None
 
         self.total_window_size = input_width + shift
 
@@ -66,17 +86,50 @@ class WindowGenerator:
 WindowGenerator.split_window = split_window
 
 
-def make_dataset(self, data):
-    data = np.array(data, dtype=np.float32)
-    ds = timeseries_dataset_from_array(
-        data=data,
-        targets=None,
-        sequence_length=self.total_window_size,
-        sequence_stride=1,
-        shuffle=True,
-        batch_size=self.batch_size, )
+def make_dataset(self, data, shuffle):
+    if type(data) is dict:
+        ds_l = []
+        for key in data.keys():
+            dt_df = data[key].copy()
+            dt = np.array(dt_df, dtype=np.float32)
 
-    ds = ds.map(self.split_window)
+            ds_ = timeseries_dataset_from_array(
+                data=dt,
+                targets=None,
+                sequence_length=self.total_window_size,
+                sequence_stride=1,
+                shuffle=shuffle,
+                batch_size=self.batch_size, )
+
+            ds_ = ds_.map(self.split_window)
+            ds_l.append(ds_)
+
+        ds = ds_l[0]
+        ds_l.remove(ds_l[0])
+        for ds_ in ds_l:
+            ds = ds.concatenate(ds_)
+
+        if self.total_batches is None:
+            self.total_batches = len(ds)
+            self.val_batches = max(1, int(np.floor(len(ds) * self.val_size)))
+            self.test_batches = max(1, int(np.floor(len(ds) * self.test_size)))
+            if self.train_size is not None:
+                self.train_batches = max(self.train_size, len(ds) - self.val_batches - self.test_batches)
+            # print(f'Train {self.train_batches} Val {self.val_batches} Test {self.test_batches}')
+
+        # print(f'Total num batchs {len(ds)}')
+        # print([x[0].shape for x in list(ds.as_numpy_iterator())])
+
+    else:
+        data = np.array(data, dtype=np.float32)
+        ds = timeseries_dataset_from_array(
+            data=data,
+            targets=None,
+            sequence_length=self.total_window_size,
+            sequence_stride=1,
+            shuffle=shuffle,
+            batch_size=self.batch_size, )
+        ds = ds.map(self.split_window)
 
     return ds
 
@@ -85,18 +138,32 @@ WindowGenerator.make_dataset = make_dataset
 
 
 @property
+def complete(self):
+    return self.make_dataset(self.train_df, shuffle=self.shuffle)
+
+
+@property
 def train(self):
-    return self.make_dataset(self.train_df)
+    if self.train_size is not None:
+        return self.complete.take(self.train_batches)
+    else:
+        return self.make_dataset(self.train_df)
 
 
 @property
 def val(self):
-    return self.make_dataset(self.val_df)
+    if self.val_size is not None:
+        return self.complete.skip(self.train_batches).take(self.val_batches)
+    else:
+        return self.make_dataset(self.val_df)
 
 
 @property
 def test(self):
-    return self.make_dataset(self.test_df)
+    if self.test_size is not None:
+        return self.complete.skip(self.train_batches).skip(self.val_batches).take(self.test_batches)
+    else:
+        return self.make_dataset(self.test_df)
 
 
 @property
@@ -108,12 +175,15 @@ def example(self):
         try:
             result = next(iter(self.test))
         except StopIteration:
-            result = self.test.take(1)
+            result = self.train.take(1)
+            result = next(result.as_numpy_iterator())
+
         # And cache it for next time
         self._example = result
     return result
 
 
+WindowGenerator.complete = complete
 WindowGenerator.train = train
 WindowGenerator.val = val
 WindowGenerator.test = test
@@ -161,44 +231,66 @@ def get_target_column_features(df, column_name):
     return df[column_name].values.reshape(-1, 1)
 
 
-def multiple_point_window_generator(train_df, val_df, test_df, target_column, label_length, batch_size=BATCH_SIZE):
-    wide_window = WindowGenerator(input_width=len(test_df) - label_length, label_width=len(test_df) - label_length,
-                                  shift=1, train_df=train_df, val_df=val_df,
-                                  test_df=test_df, label_columns=[target_column], batch_size=batch_size)
+def multiple_point_window_generator(train_df, val_df, test_df, target_column, label_length, batch_size=BATCH_SIZE,
+                                    train_size=None, val_size=None, test_size=None, shuffle=False):
+    if test_size is not None and type(test_size) is not int:
+        total_window_size = batch_size
+    else:
+        total_window_size = len(test_df)
+
+    LABEL_WIDTH = total_window_size - label_length
+    INPUT_WIDTH = total_window_size - label_length
+    wide_window = WindowGenerator(input_width=INPUT_WIDTH, label_width=LABEL_WIDTH,
+                                  shift=1, train_df=train_df, val_df=val_df, test_df=test_df,
+                                  label_columns=[target_column], batch_size=batch_size,
+                                  train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
 
     return wide_window
 
 
-def single_step_window_generator(train_df, val_df, test_df, target_column, batch_size=BATCH_SIZE):
+def single_step_window_generator(train_df, val_df, test_df, target_column, batch_size=BATCH_SIZE,
+                                 train_size=None, val_size=None, test_size=None, shuffle=False):
     single_step_window = WindowGenerator(input_width=1, label_width=1, shift=1, train_df=train_df, val_df=val_df,
-                                         test_df=test_df, label_columns=[target_column], batch_size=batch_size)
+                                         test_df=test_df, label_columns=[target_column], batch_size=batch_size,
+                                         train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
     return single_step_window
 
 
 def conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_STEPS,
-                          batch_size=BATCH_SIZE):
+                          batch_size=BATCH_SIZE,
+                          train_size=None, val_size=None, test_size=None, shuffle=False):
     conv_window_gen = WindowGenerator(input_width=history_length, label_width=1, shift=1, train_df=train_df,
                                       val_df=val_df, test_df=test_df, label_columns=[target_column],
-                                      batch_size=batch_size)
+                                      batch_size=batch_size,
+                                      train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
     return conv_window_gen
 
 
 def multiple_point_conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_STEPS,
-                                         batch_size=BATCH_SIZE):
-    LABEL_WIDTH = len(test_df) - history_length
+                                         batch_size=BATCH_SIZE,
+                                         train_size=None, val_size=None, test_size=None, shuffle=False):
+    if test_size is not None and type(test_size) is not int:
+        total_window_size = batch_size
+    else:
+        total_window_size = len(test_df)
+
+    LABEL_WIDTH = total_window_size - history_length
     INPUT_WIDTH = LABEL_WIDTH + (history_length - 1)
     wide_conv_window = WindowGenerator(input_width=INPUT_WIDTH, label_width=LABEL_WIDTH, shift=1, train_df=train_df,
                                        val_df=val_df, test_df=test_df, label_columns=[target_column],
-                                       batch_size=batch_size)
+                                       batch_size=batch_size,
+                                       train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
     return wide_conv_window
 
 
 def multi_step_window_generator(train_df, val_df, test_df, target_column, in_steps=HISTORY_STEPS, out_steps=OUT_STEPS,
-                                batch_size=BATCH_SIZE):
+                                batch_size=BATCH_SIZE,
+                                train_size=None, val_size=None, test_size=None, shuffle=False):
     multi_window = WindowGenerator(input_width=in_steps,
                                    label_width=out_steps,
                                    shift=out_steps,
                                    train_df=train_df, val_df=val_df,
                                    test_df=test_df, label_columns=[target_column],
-                                   batch_size=batch_size)
+                                   batch_size=batch_size,
+                                   train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
     return multi_window
