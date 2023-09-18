@@ -27,20 +27,18 @@ def split_window(self, features):
 
 class WindowGenerator:
     def __init__(self, input_width, label_width, shift, train_df=None, val_df=None, test_df=None, label_columns=None,
-                 train_size=None, val_size=None, test_size=None, batch_size=BATCH_SIZE, shuffle=False):
-        # Either give train, val_df, test_df or train_size, val_size, test_size
+                 val_percentage=None, test_percentage=None, batch_size=BATCH_SIZE, shuffle=False):
 
         self.train_df = train_df
         self.val_df = val_df
         self.test_df = test_df
 
-        if (train_size is None or val_size is None or test_size is None) and (
-                train_size is not None and val_size is not None and test_size is not None):
-            raise Exception("Either give train, val_df, test_df or train_size, val_size, test_size")
+        if not((val_percentage is not None and test_percentage is not None)
+               or (train_df is not None and val_df is not None and test_df is not None)):
+            raise Exception("Either give train_df, val_df, test_df or val_percentage, test_percentage")
 
-        self.train_size = train_size
-        self.val_size = val_size
-        self.test_size = test_size
+        self.val_percentage = val_percentage
+        self.test_percentage = test_percentage
         self.shuffle = shuffle
 
         if type(train_df) is dict:
@@ -93,16 +91,22 @@ def make_dataset(self, data, shuffle):
             dt_df = data[key].copy()
             dt = np.array(dt_df, dtype=np.float32)
 
-            ds_ = timeseries_dataset_from_array(
-                data=dt,
-                targets=None,
-                sequence_length=self.total_window_size,
-                sequence_stride=1,
-                shuffle=shuffle,
-                batch_size=self.batch_size, )
+            try:
+                ds_ = timeseries_dataset_from_array(
+                    data=dt,
+                    targets=None,
+                    sequence_length=self.total_window_size,
+                    sequence_stride=1,
+                    shuffle=shuffle,
+                    batch_size=self.batch_size, )
 
-            ds_ = ds_.map(self.split_window)
-            ds_l.append(ds_)
+                ds_ = ds_.map(self.split_window)
+                ds_l.append(ds_)
+
+            except ValueError:
+                #print(f'Value Error: Failed to create dataset for dataframe split {key} with {len(dt_df)} elements '
+                #      f'- Skipping.')
+                pass
 
         ds = ds_l[0]
         ds_l.remove(ds_l[0])
@@ -111,11 +115,10 @@ def make_dataset(self, data, shuffle):
 
         if self.total_batches is None:
             self.total_batches = len(ds)
-            self.val_batches = max(1, int(np.floor(len(ds) * self.val_size)))
-            self.test_batches = max(1, int(np.floor(len(ds) * self.test_size)))
-            if self.train_size is not None:
-                self.train_batches = max(self.train_size, len(ds) - self.val_batches - self.test_batches)
-            # print(f'Train {self.train_batches} Val {self.val_batches} Test {self.test_batches}')
+            self.val_batches = max(1, int(np.floor(len(ds) * self.val_percentage)))
+            self.test_batches = max(1, int(np.floor(len(ds) * self.test_percentage)))
+            self.train_batches = self.total_batches - self.val_batches - self.test_batches
+            #print(f'Train {self.train_batches} Val {self.val_batches} Test {self.test_batches}')
 
         # print(f'Total num batchs {len(ds)}')
         # print([x[0].shape for x in list(ds.as_numpy_iterator())])
@@ -144,26 +147,26 @@ def complete(self):
 
 @property
 def train(self):
-    if self.train_size is not None:
+    if self.val_percentage is not None or self.test_percentage is not None:
         return self.complete.take(self.train_batches)
     else:
-        return self.make_dataset(self.train_df)
+        return self.make_dataset(self.train_df, self.shuffle)
 
 
 @property
 def val(self):
-    if self.val_size is not None:
+    if self.val_percentage is not None:
         return self.complete.skip(self.train_batches).take(self.val_batches)
     else:
-        return self.make_dataset(self.val_df)
+        return self.make_dataset(self.val_df, self.shuffle)
 
 
 @property
 def test(self):
-    if self.test_size is not None:
+    if self.test_percentage is not None:
         return self.complete.skip(self.train_batches).skip(self.val_batches).take(self.test_batches)
     else:
-        return self.make_dataset(self.test_df)
+        return self.make_dataset(self.test_df, self.shuffle)
 
 
 @property
@@ -175,7 +178,7 @@ def example(self):
         try:
             result = next(iter(self.test))
         except StopIteration:
-            result = self.train.take(1)
+            result = self.test.take(1)
             result = next(result.as_numpy_iterator())
 
         # And cache it for next time
@@ -232,44 +235,42 @@ def get_target_column_features(df, column_name):
 
 
 def multiple_point_window_generator(train_df, val_df, test_df, target_column, label_length, batch_size=BATCH_SIZE,
-                                    train_size=None, val_size=None, test_size=None, shuffle=False):
-    if test_size is not None and type(test_size) is not int:
+                                    val_percentage=None, test_percentage=None, shuffle=False):
+    if test_percentage is not None and type(test_percentage) is not int:
         total_window_size = batch_size
     else:
         total_window_size = len(test_df)
 
     LABEL_WIDTH = total_window_size - label_length
     INPUT_WIDTH = total_window_size - label_length
-    wide_window = WindowGenerator(input_width=INPUT_WIDTH, label_width=LABEL_WIDTH,
-                                  shift=1, train_df=train_df, val_df=val_df, test_df=test_df,
-                                  label_columns=[target_column], batch_size=batch_size,
-                                  train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
+    wide_window = WindowGenerator(input_width=INPUT_WIDTH, label_width=LABEL_WIDTH, shift=1, train_df=train_df,
+                                  val_df=val_df, test_df=test_df, label_columns=[target_column],
+                                  val_percentage=val_percentage, test_percentage=test_percentage, batch_size=batch_size,
+                                  shuffle=shuffle)
 
     return wide_window
 
 
 def single_step_window_generator(train_df, val_df, test_df, target_column, batch_size=BATCH_SIZE,
-                                 train_size=None, val_size=None, test_size=None, shuffle=False):
+                                 val_percentage=None, test_percentage=None, shuffle=False):
     single_step_window = WindowGenerator(input_width=1, label_width=1, shift=1, train_df=train_df, val_df=val_df,
-                                         test_df=test_df, label_columns=[target_column], batch_size=batch_size,
-                                         train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
+                                         test_df=test_df, label_columns=[target_column], val_percentage=val_percentage,
+                                         test_percentage=test_percentage, batch_size=batch_size, shuffle=shuffle)
     return single_step_window
 
 
 def conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_STEPS,
-                          batch_size=BATCH_SIZE,
-                          train_size=None, val_size=None, test_size=None, shuffle=False):
+                          batch_size=BATCH_SIZE, val_percentage=None, test_percentage=None, shuffle=False):
     conv_window_gen = WindowGenerator(input_width=history_length, label_width=1, shift=1, train_df=train_df,
                                       val_df=val_df, test_df=test_df, label_columns=[target_column],
-                                      batch_size=batch_size,
-                                      train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
+                                      val_percentage=val_percentage, test_percentage=test_percentage, batch_size=batch_size,
+                                      shuffle=shuffle)
     return conv_window_gen
 
 
 def multiple_point_conv_window_generator(train_df, val_df, test_df, target_column, history_length=HISTORY_STEPS,
-                                         batch_size=BATCH_SIZE,
-                                         train_size=None, val_size=None, test_size=None, shuffle=False):
-    if test_size is not None and type(test_size) is not int:
+                                         batch_size=BATCH_SIZE, val_percentage=None, test_percentage=None, shuffle=False):
+    if test_percentage is not None and type(test_percentage) is not int:
         total_window_size = batch_size
     else:
         total_window_size = len(test_df)
@@ -278,19 +279,15 @@ def multiple_point_conv_window_generator(train_df, val_df, test_df, target_colum
     INPUT_WIDTH = LABEL_WIDTH + (history_length - 1)
     wide_conv_window = WindowGenerator(input_width=INPUT_WIDTH, label_width=LABEL_WIDTH, shift=1, train_df=train_df,
                                        val_df=val_df, test_df=test_df, label_columns=[target_column],
-                                       batch_size=batch_size,
-                                       train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
+                                       val_percentage=val_percentage, test_percentage=test_percentage, batch_size=batch_size,
+                                       shuffle=shuffle)
     return wide_conv_window
 
 
 def multi_step_window_generator(train_df, val_df, test_df, target_column, in_steps=HISTORY_STEPS, out_steps=OUT_STEPS,
-                                batch_size=BATCH_SIZE,
-                                train_size=None, val_size=None, test_size=None, shuffle=False):
-    multi_window = WindowGenerator(input_width=in_steps,
-                                   label_width=out_steps,
-                                   shift=out_steps,
-                                   train_df=train_df, val_df=val_df,
-                                   test_df=test_df, label_columns=[target_column],
-                                   batch_size=batch_size,
-                                   train_size=train_size, val_size=val_size, test_size=test_size, shuffle=shuffle)
+                                batch_size=BATCH_SIZE,val_percentage=None, test_percentage=None, shuffle=False):
+    multi_window = WindowGenerator(input_width=in_steps, label_width=out_steps, shift=out_steps, train_df=train_df,
+                                   val_df=val_df, test_df=test_df, label_columns=[target_column],
+                                   val_percentage=val_percentage, test_percentage=test_percentage, batch_size=batch_size,
+                                   shuffle=shuffle)
     return multi_window
