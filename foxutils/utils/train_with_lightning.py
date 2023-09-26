@@ -140,25 +140,38 @@ def custom_weights_init(layer):
 class DataAugmentation(nn.Module):
     """Module to perform data augmentation using Kornia on torch tensors."""
 
-    def __init__(self, apply_color_jitter: bool = False) -> None:
+    def keep_original_dim(self, x: Tensor, orig_dim: tuple) -> Tensor:
+        new_dim = x.shape[-2:]
+        if self.keep_orig_dim:
+            transform = nn.Sequential(
+                augmentation.CenterCrop((new_dim[0]-30, new_dim[1]-30), p=1, keepdim=True),
+                augmentation.Resize(orig_dim, p=1, keepdim=True),
+            )
+            return transform(x)
+        else:
+            return x
+
+    def __init__(self, apply_color_jitter: bool = False, p=0.5, keep_orig_dim=False) -> None:
         super().__init__()
         self._apply_color_jitter = apply_color_jitter
-
+        self.keep_orig_dim = keep_orig_dim
         self.transforms = nn.Sequential(
-            augmentation.RandomHorizontalFlip(p=0.5),
-            augmentation.RandomRotation(degrees=10.0, p=0.5, keepdim=True),
-            # augmentation.RandomBrightness(p=0.75),
-            augmentation.RandomPerspective(0.1, p=0.5, keepdim=True),
-            # augmentation.RandomThinPlateSpline(scale=0.1, p=0.5),
+            augmentation.RandomHorizontalFlip(p=p),
+            augmentation.RandomRotation(degrees=10.0, p=p, keepdim=False),
+            # augmentation.RandomBrightness(p=p),
+            augmentation.RandomPerspective(0.1, p=p, keepdim=False),
+            # augmentation.RandomThinPlateSpline(scale=0.1, p=p),
         )
 
         self.jitter = augmentation.ColorJitter(0.5, 0.5, 0.5, 0.5)
 
     @torch.no_grad()  # disable gradients for effiency
     def forward(self, x: Tensor) -> Tensor:
+        orig_dim = x.shape[-2:]
         x_out = self.transforms(x)  # BxCxHxW
         if self._apply_color_jitter:
             x_out = self.jitter(x_out)
+        x_out = self.keep_original_dim(x_out, orig_dim)
         return x_out
 
 
