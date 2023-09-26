@@ -1,3 +1,4 @@
+import os
 from os.path import join as pathjoin
 from os.path import splitext
 
@@ -11,15 +12,22 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolu
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-from foxutils.utils import core_utils, display_and_plot
+from foxutils.utils import core_utils, display_and_plot, train_with_lightning
 from .core_utils import SEED
 
 import pickle
+
+from torchvision.io import read_image
+from torchvision.utils import save_image
+import kornia
+import torchvision.transforms as T
+from PIL import ImageFile
 
 ###########################################################
 MAX_EPOCHS = 20
 NUM_WORKERS = 0
 BATCH_SIZE = 16
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 ###########################################################
 
@@ -182,7 +190,7 @@ def get_error_metrics(actual, pred):
 ###############################################################
 
 
-def save_trained_model(target_model, save_name, models_dir = default_models_dir):
+def save_trained_model(target_model, save_name, models_dir=default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pts')
     core_utils.mkdir_if_not_exist(filename)
@@ -191,7 +199,7 @@ def save_trained_model(target_model, save_name, models_dir = default_models_dir)
     print(f'Model is saved at location: {filename}')
 
 
-def load_trained_model(target_model_class, save_name, models_dir = default_models_dir):
+def load_trained_model(target_model_class, save_name, models_dir=default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pts')
     print(f'Model is loaded from location: {filename}')
@@ -201,7 +209,8 @@ def load_trained_model(target_model_class, save_name, models_dir = default_model
     target_model.eval()
     return target_model
 
-def pickle_model(target_model, save_name, models_dir = default_models_dir):
+
+def pickle_model(target_model, save_name, models_dir=default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pkl')
     f = open(filename, "wb")
@@ -209,7 +218,8 @@ def pickle_model(target_model, save_name, models_dir = default_models_dir):
     f.close()
     print(f'Model is saved at location: {filename}')
 
-def unpickle_model(save_name, models_dir = default_models_dir):
+
+def unpickle_model(save_name, models_dir=default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pkl')
     target_model = pickle.loads(open(filename, "rb").read())
@@ -239,7 +249,7 @@ def apply_scaling(df, scaler, has_fit=True):
 
 def inverse_scaling(df, scaler):
     numeric_cols = scaler.get_feature_names_out()
-    missing_cols =[x for x in numeric_cols if x not in df.columns]
+    missing_cols = [x for x in numeric_cols if x not in df.columns]
     for x in missing_cols:
         df[x] = 0
 
@@ -296,7 +306,7 @@ def make_data_loader_with_torch(dataset, batch_size=BATCH_SIZE, shuffle=False, s
 def make_train_val_test_generators_with_torch(dataset, val_percentage, test_percentage, batch_size=BATCH_SIZE,
                                               show_size=False):
     permutation_generator = torch.Generator().manual_seed(SEED)
-    splits = [1-(val_percentage+test_percentage), val_percentage, test_percentage]
+    splits = [1 - (val_percentage + test_percentage), val_percentage, test_percentage]
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, splits,
                                                                              generator=permutation_generator)
     if show_size:
@@ -305,8 +315,55 @@ def make_train_val_test_generators_with_torch(dataset, val_percentage, test_perc
         print(f'Number of test images: {len(test_dataset)}')
 
     data_generators = {"train": TorchDataLoader(train_dataset, shuffle=False, batch_size=batch_size),
-                        "valid": TorchDataLoader(val_dataset, shuffle=False, batch_size=batch_size),
+                       "valid": TorchDataLoader(val_dataset, shuffle=False, batch_size=batch_size),
                        "test": TorchDataLoader(test_dataset, shuffle=False, batch_size=batch_size)}
 
     return data_generators
 
+
+################################################################################
+
+# import matplotlib.pyplot as plt
+
+def augment_image_dataset_by_class(df, target_column, target_classes, num_per_class, image_dataset_dir,
+                                   target_classes_dict):
+    for c in target_classes:
+        to_be_augmented = df[df[target_column] == c].copy()
+        orig_num = len(to_be_augmented)
+        expected = num_per_class - orig_num
+        while len(to_be_augmented) < expected:
+            to_be_augmented = pd.concat([to_be_augmented, to_be_augmented.iloc[-(num_per_class - orig_num):]])
+        to_be_augmented = to_be_augmented.iloc[:expected + 1]
+        print(f'To be augmented {len(to_be_augmented)} for {target_classes_dict[c]}.')
+
+        aug_tfm = train_with_lightning.DataAugmentation(apply_color_jitter=False, p=0.5, keep_orig_dim=True)
+
+        for folder in to_be_augmented["folder"].unique():
+            core_utils.mkdir_if_not_exist(pathjoin(image_dataset_dir, folder + "aug", ""))
+
+        for (folder, file) in zip(to_be_augmented["folder"].values, to_be_augmented["file"].values):
+            i = 0
+            new_file = "_".join([folder + "aug" + "%s", file.split("_")[-1]]) % i
+            savedir = pathjoin(image_dataset_dir, folder + "aug", "")
+            while os.path.exists(pathjoin(savedir, new_file)):
+                i += 1
+                new_file = "_".join([folder + "aug" + "%s", file.split("_")[-1]]) % i
+
+            try:
+                img = read_image(pathjoin(image_dataset_dir, folder, file)).squeeze()
+                # pil_img = T.ToPILImage()(img)
+                # plt.imshow(np.asarray(pil_img))
+                # plt.show()
+
+                imgs_aug = aug_tfm(img.float()).squeeze()
+                imgs_aug = kornia.tensor_to_image(imgs_aug.byte())
+                pil_img = T.ToPILImage()(imgs_aug)
+                # plt.imshow(np.asarray(pil_img))
+                # plt.show()
+                pil_img.save(pathjoin(savedir, new_file))
+                # print(new_file)
+                # break
+            except RuntimeError:
+                print(f'Error in augmenting {pathjoin(image_dataset_dir, folder, file)}.')
+
+        print(f'Finished augmentation for {target_classes_dict[c]}.')

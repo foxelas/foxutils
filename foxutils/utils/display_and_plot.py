@@ -14,6 +14,27 @@ from os.path import join as pathjoin
 # matplotlib.use('Qt5Agg')
 
 
+def plot_histogram(df, target_column, category_dict=None, plot_title='', print_texts=False):
+    if print_texts:
+        print(f"\nNumber of entries: {len(df)}")
+        print(f"Unique categories:\n {np.unique(df[target_column].dropna().values)}")
+
+    hist = df[target_column].value_counts()
+    # hist.sort_values(inplace=True, ascending=False)
+
+    if category_dict is None:
+        category_dict = {k: k for k in hist.index}
+
+    inv_map = {v: k for k, v in category_dict.items()}
+    v = [inv_map[x] for x in hist.index]
+    plt.bar(v, hist, width=0.4)
+    plt.xticks(rotation='vertical')
+    plt.title(plot_title)
+    plt.show()
+
+    if print_texts:
+        print(hist)
+
 def print_timeseries(timestamps, values, plot_title):
     fig, ax = plt.subplots()
     ax.plot(timestamps, values)
