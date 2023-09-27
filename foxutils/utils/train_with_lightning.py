@@ -140,37 +140,43 @@ def custom_weights_init(layer):
 class DataAugmentation(nn.Module):
     """Module to perform data augmentation using Kornia on torch tensors."""
 
-    def keep_original_dim(self, x: Tensor, orig_dim: tuple) -> Tensor:
-        new_dim = x.shape[-2:]
-        if self.keep_orig_dim:
-            transform = nn.Sequential(
-                augmentation.CenterCrop((new_dim[0]-30, new_dim[1]-30), p=1, keepdim=True),
-                augmentation.Resize(orig_dim, p=1, keepdim=True),
-            )
-            return transform(x)
-        else:
-            return x
-
-    def __init__(self, apply_color_jitter: bool = False, p=0.5, keep_orig_dim=False) -> None:
-        super().__init__()
-        self._apply_color_jitter = apply_color_jitter
-        self.keep_orig_dim = keep_orig_dim
-        self.transforms = nn.Sequential(
+    def get_default_transforms(self, p):
+        default_transforms = nn.Sequential(
             augmentation.RandomHorizontalFlip(p=p),
             augmentation.RandomRotation(degrees=10.0, p=p, keepdim=False),
             # augmentation.RandomBrightness(p=p),
             augmentation.RandomPerspective(0.1, p=p, keepdim=False),
             # augmentation.RandomThinPlateSpline(scale=0.1, p=p),
         )
+        return default_transforms
 
-        self.jitter = augmentation.ColorJitter(0.5, 0.5, 0.5, 0.5)
+    def get_color_transforms(self):
+        transform = augmentation.ColorJitter(0.5, 0.5, 0.5, 0.5)
+        return transform
+
+    def keep_original_dim(self, x: Tensor, orig_dim: tuple) -> Tensor:
+        new_dim = x.shape[-2:]
+        if self.keep_orig_dim:
+            transform = nn.Sequential(
+                augmentation.CenterCrop((new_dim[0] - 30, new_dim[1] - 30), p=1, keepdim=True),
+                augmentation.Resize(orig_dim, p=1, keepdim=True),
+            )
+            return transform(x)
+        else:
+            return x
+
+    def __init__(self, transforms=None, p=0.5, keep_orig_dim=False) -> None:
+        super().__init__()
+        self.keep_orig_dim = keep_orig_dim
+        if transforms is None:
+            self.transforms = self.get_default_transforms(p)
+        else:
+            self.transforms = transforms
 
     @torch.no_grad()  # disable gradients for effiency
     def forward(self, x: Tensor) -> Tensor:
         orig_dim = x.shape[-2:]
         x_out = self.transforms(x)  # BxCxHxW
-        if self._apply_color_jitter:
-            x_out = self.jitter(x_out)
         x_out = self.keep_original_dim(x_out, orig_dim)
         return x_out
 
@@ -178,12 +184,12 @@ class DataAugmentation(nn.Module):
 class PredictionModel(pl.LightningModule):
     def __init__(self, model_class, task="binary", num_classes=2, num_labels=2, forward_function=get_binary_label,
                  loss_fun=nn.BCELoss, configure_optimizers_fun=None, average='micro', has_augmentation=False,
-                 class_mapping=None, **model_hyperparameters):
+                 aug_transforms=None, aug_p=0.5, class_mapping=None, **model_hyperparameters):
         super().__init__()
         self.save_hyperparameters(ignore=['loss_fun', 'model_class'])
         self.class_mapping = class_mapping
         self.has_augmentation = has_augmentation
-        self.transform = DataAugmentation()  # per batch augmentation_kornia
+        self.transform = DataAugmentation(transforms=aug_transforms, p=aug_p, keep_orig_dim=True)
         self.forward_function = forward_function
         self.loss_fun = loss_fun  # F.binary_cross_entropy()
         if len(model_hyperparameters) == 0:
@@ -452,7 +458,6 @@ class Autoencoder(pl.LightningModule):
 
 def train_predictive_model(target_model_class, lightning_log_dir, data_generators, epochs=2, early_stopping_patience=5,
                            **model_params):
-
     target_model = target_model_class(**model_params)
 
     lr_logger = LearningRateMonitor("epoch")
@@ -526,7 +531,6 @@ class GenerateCallbackForImageReconstruction(pl.Callback):
 def train_image_reconstruction_model(target_model_class, lightning_log_dir, data_generators, epochs=2,
                                      has_checkpoint=False, checkpoint_path=None, pretrained_filename=None,
                                      callback_data=None, **model_params):
-
     target_model = target_model_class(**model_params)
 
     lr_logger = LearningRateMonitor("epoch")
@@ -554,7 +558,7 @@ def train_image_reconstruction_model(target_model_class, lightning_log_dir, data
         print("Found pretrained model, loading...")
 
         target_model = target_model.load_from_checkpoint(pretrained_filename)
-        #target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
+        # target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
 
     else:
         trainer.fit(target_model, data_generators["train"], data_generators["valid"])
@@ -562,7 +566,6 @@ def train_image_reconstruction_model(target_model_class, lightning_log_dir, data
         checkpoint_path = trainer.checkpoint_callback.best_model_path
         print('Loading model from the best path: ', checkpoint_path)
         target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
-
 
     # Test best model on validation and test set
     val_result = trainer.test(target_model, data_generators["valid"], verbose=False)
