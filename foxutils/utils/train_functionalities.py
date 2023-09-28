@@ -38,8 +38,6 @@ settings = core_utils.settings
 datasets_dir = core_utils.datasets_dir
 default_models_dir = core_utils.models_dir
 token_dir = core_utils.token_dir
-preprocessed_folder = core_utils.preprocessed_folder
-extracted_folder = core_utils.extracted_folder
 device = core_utils.device
 
 

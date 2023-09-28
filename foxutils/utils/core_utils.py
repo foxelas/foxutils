@@ -60,8 +60,7 @@ settings = read_config()
 datasets_dir = normpath(settings['DIRECTORY']['datasets_dir'])
 models_dir = normpath(settings['DIRECTORY']['models_dir'])
 token_dir = normpath(settings['DIRECTORY']['token_dir'])
-preprocessed_folder = settings['DIRECTORY']['preprocessed_folder']
-extracted_folder = settings['DIRECTORY']['extracted_folder']
+
 
 is_test = settings['RUN']['is_test']
 test_suffix = '_test' if is_test else ''
