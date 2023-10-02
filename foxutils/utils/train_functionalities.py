@@ -334,7 +334,7 @@ def augment_image_dataset_by_class(df, target_column, target_classes, num_per_cl
         to_be_augmented = to_be_augmented.iloc[:expected + 1]
         print(f'To be augmented {len(to_be_augmented)} for {target_classes_dict[c]}.')
 
-        aug_tfm = train_with_lightning.DataAugmentation(apply_color_jitter=False, p=0.5, keep_orig_dim=True)
+        aug_tfm = train_with_lightning.DataAugmentation(p=0.5, keep_orig_dim=True)
 
         for folder in to_be_augmented["folder"].unique():
             core_utils.mkdir_if_not_exist(pathjoin(image_dataset_dir, folder + "aug", ""))
