@@ -1,27 +1,23 @@
 import os
+import pickle
 from os.path import join as pathjoin
 from os.path import splitext
 
+import kornia
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader as TorchDataLoader
-
+import torchvision.transforms as T
+from PIL import ImageFile
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from torch.utils.data import DataLoader as TorchDataLoader
+from torchvision.io import read_image
 
 from foxutils.utils import core_utils, display_and_plot, train_with_lightning
 from .core_utils import SEED
-
-import pickle
-
-from torchvision.io import read_image
-from torchvision.utils import save_image
-import kornia
-import torchvision.transforms as T
-from PIL import ImageFile
 
 ###########################################################
 MAX_EPOCHS = 20

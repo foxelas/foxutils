@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from .image_utils import read_image_to_tensor
 
 #############################################
-# Autoencoder
 
 IM_WIDTH = 640
 IM_HEIGHT = 368
