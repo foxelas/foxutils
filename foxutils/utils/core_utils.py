@@ -21,18 +21,7 @@ from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 SEED = 42
 
-
 ###########################################################
-
-def get_device():
-    device_ = "cuda" if torch.cuda.is_available() else "cpu"
-    if __name__ == '__main__':
-        print(f'Running on {device_}')
-    return device_
-
-
-device = get_device()
-
 # The filename of the settings file
 settings_filename = 'config.ini'
 
@@ -57,10 +46,23 @@ def read_config():
 
 settings = read_config()
 
+
+def get_device():
+    if 'device' in settings['RUN'].keys():
+        device_ = settings['RUN']['device']
+    else:
+        device_ = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if __name__ == '__main__':
+        print(f'Running on {device_}')
+    return device_
+
+
+device = get_device()
+
 datasets_dir = normpath(settings['DIRECTORY']['datasets_dir'])
 models_dir = normpath(settings['DIRECTORY']['models_dir'])
 token_dir = normpath(settings['DIRECTORY']['token_dir'])
-
 
 is_test = settings['RUN']['is_test']
 test_suffix = '_test' if is_test else ''
@@ -290,6 +292,5 @@ def mkdir_if_not_exist(target_path):
 
 def flatten(l):
     return [item for sublist in l for item in sublist]
-
 
 #########################################################
