@@ -108,6 +108,15 @@ def get_api_key(filename):
 
 ###########################################################
 # Datetimes
+
+def get_current_datetime(tz=None):
+    current_datetime = datetime.now()
+    if tz is not None:
+        current_datetime = current_datetime.astimezone(tz)
+
+    return current_datetime
+
+
 def convert_string_to_date(date_string):
     try:
         date_value = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
