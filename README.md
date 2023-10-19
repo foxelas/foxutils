@@ -1,6 +1,8 @@
 # foxutils
 Foxelas utils for python for rapid development 
 
+The latest version is in branch 'v1'.
+
 ## Contents: 
 - feature_extractors
     Common models for text processing including a text_cleaner, word embedding, sentiment detection, and summarization. 
@@ -10,6 +12,10 @@ Foxelas utils for python for rapid development
     Basic models with Keras and Torch. 
     Data generators and ARIMA models.
     Training suite with PyTorch Lightning.
+
+- gradio
+
+- streams 
 
 ## Installation:
 Install locally at a virtual environment with:
