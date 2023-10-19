@@ -10,6 +10,8 @@ RETRIEVE_EVERY_N_FRAMES = 5
 USE_PAFY = False
 CUSTOM_FPS = 30
 
+import sys
+print(f"Python path: {sys.path}")
 if LOCAL_INSTALLATION:
     from libs.pytube import YouTube
 else:
@@ -42,7 +44,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
                     import pafy
                     url = pafy.new(url).getbest(preftype="mp4").url
                 else:
-                    yt = YouTube(url)
+                    yt = YouTube(url, use_oauth=True, allow_oauth_cache=True)
                     url = yt.streams.filter(file_extension="mp4", res=720).first().url
 
             cap = cv2.VideoCapture(url)

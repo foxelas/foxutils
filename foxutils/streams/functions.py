@@ -4,10 +4,10 @@ from os.path import join as pathjoin
 from foxutils.utils import core_utils
 
 UPDATE_RESULTS_EVERY_N_FRAMES = 10
-SAVE_DIR = pathjoin(core_utils.datasets_dir, 'youtube')
+DEFAULT_SAVE_DIR = pathjoin(core_utils.datasets_dir, 'youtube')
 
 
-def save_frames(url_info, save_every_n_frames=UPDATE_RESULTS_EVERY_N_FRAMES):
+def save_frames(url_info, savedir, save_every_n_frames=UPDATE_RESULTS_EVERY_N_FRAMES):
     dataset = stream_utils.LoadStreams(url_info["url"], custom_fps=None)
     target_label = url_info["label"]
     target_name = url_info["name"]
@@ -20,7 +20,7 @@ def save_frames(url_info, save_every_n_frames=UPDATE_RESULTS_EVERY_N_FRAMES):
             if count == save_every_n_frames:
                 count = 0
                 filename = target_name + '_frame' + str(c) + '.jpg'
-                target_path = pathjoin(SAVE_DIR, target_label, '')
+                target_path = pathjoin(savedir, target_label, '')
                 core_utils.mkdir_if_not_exist(target_path)
                 # cv2.imshow('image',image)
                 # cv2.waitKey(0)
@@ -34,7 +34,7 @@ def save_frames(url_info, save_every_n_frames=UPDATE_RESULTS_EVERY_N_FRAMES):
     print(f'Finished processing stream.')
 
 
-def bulk_download_from_youtube(url_list, save_every_n_frames=UPDATE_RESULTS_EVERY_N_FRAMES):
+def bulk_download_from_youtube(url_list, savedir=None, save_every_n_frames=UPDATE_RESULTS_EVERY_N_FRAMES):
     """
     Example Url list :
 
@@ -45,5 +45,7 @@ def bulk_download_from_youtube(url_list, save_every_n_frames=UPDATE_RESULTS_EVER
         {'name': '2020', 'url': 'https://www.youtube.com/watch?v=gMNAywukAto', 'label': 'rain'},
     ]
     """
+    if savedir is None:
+        savedir = DEFAULT_SAVE_DIR
     for x in url_list:
-        save_frames(x, save_every_n_frames)
+        save_frames(x, savedir, save_every_n_frames)
