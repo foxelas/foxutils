@@ -1,11 +1,3 @@
-runs/
-runs/*
-temp_files/*
-
-*/config.ini
-config.ini
-
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -168,3 +160,13 @@ cython_debug/
 *.out
 *.gz
 *.synctex
+
+
+# Custom
+
+runs/
+runs/*
+temp_files/*
+
+*/config.ini
+config.ini
