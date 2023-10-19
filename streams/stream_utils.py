@@ -10,8 +10,6 @@ RETRIEVE_EVERY_N_FRAMES = 5
 USE_PAFY = False
 CUSTOM_FPS = 30
 
-import sys
-print(f"Python path: {sys.path}")
 if LOCAL_INSTALLATION:
     from libs.pytube import YouTube
 else:

@@ -3,7 +3,7 @@ import torch
 from sentence_transformers import SentenceTransformer, models
 from sklearn.decomposition import PCA
 
-from foxutils.utils import core_utils
+from .utils import core_utils
 
 device = core_utils.device
 

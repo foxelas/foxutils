@@ -1,7 +1,7 @@
 from . import stream_utils
 import cv2
 from os.path import join as pathjoin
-from foxutils.utils import core_utils
+from ..utils import core_utils
 
 UPDATE_RESULTS_EVERY_N_FRAMES = 10
 DEFAULT_SAVE_DIR = pathjoin(core_utils.datasets_dir, 'youtube')

@@ -16,7 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader as TorchDataLoader
 from torchvision.io import read_image
 
-from foxutils.utils import core_utils, display_and_plot, train_with_lightning
+from . import core_utils, display_and_plot, train_with_lightning
 from .core_utils import SEED
 
 ###########################################################

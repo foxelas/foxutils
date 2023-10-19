@@ -6,7 +6,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 
-from foxutils.utils import core_utils
+from .utils import core_utils
 
 disable_lemmatizer = bool(eval(core_utils.settings['RUN']['disable_lemmatizer']))
 if not disable_lemmatizer:

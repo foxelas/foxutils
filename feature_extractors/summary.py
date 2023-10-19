@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer, PegasusForConditionalGeneration
 
-from foxutils.utils import core_utils
+from .utils import core_utils
 
 device = core_utils.device
 
