@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from torchvision.io import read_image
 
 from . import core_utils, display_and_plot, train_with_lightning
-from .core_utils import SEED
+from .core_utils import SEED, logger
 
 ###########################################################
 MAX_EPOCHS = 20
@@ -97,7 +97,7 @@ def train_and_validate_model(data_generator_train, data_generator_validate, targ
                 train_loss_val += loss.item()
 
             except ValueError:
-                print(f'Error in applying for batch {i}')
+                logger.info(f'Error in applying for batch {i}')
                 print(f'Outputs {outputs}')
                 print(f'Labels {labels}')
 
@@ -110,7 +110,7 @@ def train_and_validate_model(data_generator_train, data_generator_validate, targ
             accuracy, loss, cm = validate_model(data_generator_validate, target_model, criterion)
             valid_accuracy.append(accuracy)
             valid_loss.append(loss)
-            print('Epoch: {}. Train Loss: {:.2f}. Train Accuracy: {:.2f}. Valid Loss: {:.2f}. Valid Accuracy: {:.2f}'
+            logger.info('Epoch: {}. Train Loss: {:.2f}. Train Accuracy: {:.2f}. Valid Loss: {:.2f}. Valid Accuracy: {:.2f}'
                   .format(epoch, train_loss_val, train_accuracy_val, loss, accuracy))
             print('Valid Confusion matrix {}'.format(cm))
 
@@ -190,13 +190,13 @@ def save_trained_model(target_model, save_name, models_dir=default_models_dir):
     core_utils.mkdir_if_not_exist(filename)
 
     torch.save(target_model.state_dict(), filename)
-    print(f'Model is saved at location: {filename}')
+    logger.info(f'Model is saved at location: {filename}')
 
 
 def load_trained_model(target_model_class, save_name, models_dir=default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pts')
-    print(f'Model is loaded from location: {filename}')
+    logger.info(f'Model is loaded from location: {filename}')
     target_model = target_model_class
     target_model.load_state_dict(torch.load(filename))
     # target_model = torch.load(filename.replace('.model', '.pt'))
@@ -210,14 +210,14 @@ def pickle_model(target_model, save_name, models_dir=default_models_dir):
     f = open(filename, "wb")
     f.write(pickle.dumps(target_model))
     f.close()
-    print(f'Model is saved at location: {filename}')
+    logger.info(f'Model is saved at location: {filename}')
 
 
 def unpickle_model(save_name, models_dir=default_models_dir):
     save_name, save_ext = splitext(save_name)
     filename = pathjoin(models_dir, save_name + '.pkl')
     target_model = pickle.loads(open(filename, "rb").read())
-    print(f'Model is loaded from location: {filename}')
+    logger.info(f'Model is loaded from location: {filename}')
     return target_model
 
 
@@ -278,9 +278,9 @@ def make_scale_train_val_test(data_df, val_percentage=0.3, test_percentage=0.05)
     train_df, test_df = train_test_split(data_df, test_size=test_percentage, random_state=SEED, shuffle=False)
     train_df, val_df = train_test_split(train_df, test_size=val_percentage, random_state=SEED, shuffle=False)
 
-    print(f'Train length: {len(train_df)}')
-    print(f'Val length: {len(val_df)}')
-    print(f'Test length: {len(test_df)}')
+    logger.info(f'Train length: {len(train_df)}')
+    logger.info(f'Val length: {len(val_df)}')
+    logger.info(f'Test length: {len(test_df)}')
 
     scaler = MinMaxScaler()
     scaler, train_df = apply_scaling(train_df, scaler, has_fit=True)
@@ -293,7 +293,7 @@ def make_scale_train_val_test(data_df, val_percentage=0.3, test_percentage=0.05)
 def make_data_loader_with_torch(dataset, batch_size=BATCH_SIZE, shuffle=False, show_size=False):
     data_generator = TorchDataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
     if show_size:
-        print(f'Number of images in the data loader: {len(dataset)}')
+        logger.info(f'Number of images in the data loader: {len(dataset)}')
     return data_generator
 
 
@@ -304,9 +304,9 @@ def make_train_val_test_generators_with_torch(dataset, val_percentage, test_perc
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, splits,
                                                                              generator=permutation_generator)
     if show_size:
-        print(f'Number of train images: {len(train_dataset)}')
-        print(f'Number of valid images: {len(val_dataset)}')
-        print(f'Number of test images: {len(test_dataset)}')
+        logger.info(f'Number of train images: {len(train_dataset)}')
+        logger.info(f'Number of valid images: {len(val_dataset)}')
+        logger.info(f'Number of test images: {len(test_dataset)}')
 
     data_generators = {"train": TorchDataLoader(train_dataset, shuffle=False, batch_size=batch_size),
                        "valid": TorchDataLoader(val_dataset, shuffle=False, batch_size=batch_size),
@@ -328,7 +328,7 @@ def augment_image_dataset_by_class(df, target_column, target_classes, num_per_cl
         while len(to_be_augmented) < expected:
             to_be_augmented = pd.concat([to_be_augmented, to_be_augmented.iloc[-(num_per_class - orig_num):]])
         to_be_augmented = to_be_augmented.iloc[:expected + 1]
-        print(f'To be augmented {len(to_be_augmented)} for {target_classes_dict[c]}.')
+        logger.info(f'To be augmented {len(to_be_augmented)} for {target_classes_dict[c]}.')
 
         aug_tfm = train_with_lightning.DataAugmentation(p=0.5, keep_orig_dim=True)
 
@@ -358,9 +358,9 @@ def augment_image_dataset_by_class(df, target_column, target_classes, num_per_cl
                 # print(new_file)
                 # break
             except RuntimeError:
-                print(f'Error in augmenting {pathjoin(image_dataset_dir, folder, file)}.')
+                logger.info(f'Error in augmenting {pathjoin(image_dataset_dir, folder, file)}.')
 
-        print(f'Finished augmentation for {target_classes_dict[c]}.')
+        logger.info(f'Finished augmentation for {target_classes_dict[c]}.')
 
 
 def get_label_and_prob_string(label, prob):

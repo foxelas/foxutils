@@ -21,7 +21,7 @@ from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 SEED = 42
 
-###########################################################
+#########################################################
 # The filename of the settings file
 settings_filename = 'config.ini'
 
@@ -40,12 +40,26 @@ def read_config():
 
     filepath = pathjoin(filepath, settings_filename)
     config.read(filepath)
-    # print({section: dict(config[section]) for section in config.sections()})
+    # logging.debug({section: dict(config[section]) for section in config.sections()})
     return config
 
 
 settings = read_config()
 
+###########################################################
+import logging
+
+def set_logger(logger_):
+    logging_level = settings['RUN']['logging']
+    if logging_level == 'INFO':
+        logger_.setLevel(logging.INFO)
+    elif logging_level == 'DEBUG':
+        logger_.setLevel(logging.DEBUG)
+    return logger_
+
+logger = set_logger(logging.getLogger(__name__))
+
+###########################################################
 
 def get_device():
     if 'device' in settings['RUN'].keys():
@@ -54,7 +68,7 @@ def get_device():
         device_ = "cuda" if torch.cuda.is_available() else "cpu"
 
     if __name__ == '__main__':
-        print(f'Running on {device_}')
+        logging.info(f'Running on {device_}')
     return device_
 
 
@@ -95,7 +109,7 @@ def get_base_path():
     return target_path
 
 
-# print(f'Default package path is {get_package_path()}')
+# logging.info(f'Default package path is {get_package_path()}')
 
 
 ###########################################################
@@ -186,18 +200,18 @@ def get_request(link, **kwargs):
     try:
         r = requests.get(link, **kwargs)
         if r.status_code == 403:
-            print(f'Access denied for link {link}')
+            logging.info(f'Access denied for link {link}')
         else:
             success = True
 
     except requests.exceptions.ConnectionError as ce:
-        print(f'A connection error occurred for {link}.')
-        print(ce)
+        logging.info(f'A connection error occurred for {link}.')
+        logging.info(ce)
 
     except (MaxRetryError, NewConnectionError,
             requests.exceptions.NewConnectionError, requests.exceptions.SSLError) as ne:
-        print(f'A request error occurred for {link}.')
-        print(ne)
+        logging.info(f'A request error occurred for {link}.')
+        logging.info(ne)
 
     return success, r
 
@@ -286,7 +300,7 @@ def time_execution(target_function, **kwargs):
     start = time.time()
     target_function(**kwargs)
     end = time.time()
-    print(f'Execution took {end - start} seconds.')
+    logging.info(f'Execution took {end - start} seconds.')
 
 
 #########################################################
@@ -308,15 +322,4 @@ def find_files_by_extension(filepath, target_extension, ascending=True):
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
-#########################################################
-import logging
 
-def set_logger(logger):
-    logging_level = settings['RUN']['logging']
-    if logging_level == 'INFO':
-        logger.setLevel(logging.INFO)
-    elif logging_level == 'DEBUG':
-        logger.setLevel(logging.DEBUG)
-    return logger
-
-#########################################################

@@ -17,7 +17,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from torch import Tensor
 from torch import nn
 
-from .core_utils import SEED, models_dir
+from .core_utils import SEED, models_dir, logger
 
 
 #################################################################################
@@ -64,7 +64,7 @@ def get_lightning_checkpoint_file(lightning_log_dir, checkpoint_version, checkpo
 def pl_load_trained_model(target_model_class, weight_path, **model_params):
     weight_path_file, weight_path_ext = splitext(weight_path)
     assert weight_path_ext == '.pts', True
-    print(f'Model is loaded from location: {weight_path}')
+    logger.info(f'Model is loaded from location: {weight_path}')
     target_model = target_model_class(**model_params)
     target_model.load_state_dict(torch.load(weight_path))
     target_model.eval()
@@ -75,11 +75,11 @@ def pl_load_trained_model(target_model_class, weight_path, **model_params):
 def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params):
     checkpoint_path_file, checkpoint_path_ext = splitext(checkpoint_path)
     assert checkpoint_path_ext == '.ckpt', True
-    print(f'Model is loaded from checkpoint: {checkpoint_path}')
+    logger.info(f'Model is loaded from checkpoint: {checkpoint_path}')
     target_model = target_model_class.load_from_checkpoint(checkpoint_path=checkpoint_path, **model_params)
     checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
     hyperparams = checkpoint["hyper_parameters"]
-    print(f'Loaded hyperparameters: {hyperparams}')
+    logger.info(f'Loaded hyperparameters: {hyperparams}')
     target_model.eval()
     return target_model
 
@@ -192,7 +192,7 @@ def train_predictive_model(target_model_class, lightning_log_dir, data_generator
                  ]
 
     if early_stopping_patience is not None:
-        print(f'Early stop callback with patience {early_stopping_patience} enabled')
+        logger.info(f'Early stop callback with patience {early_stopping_patience} enabled')
         early_stop_callback = EarlyStopping(monitor="val_acc", min_delta=1e-6, patience=early_stopping_patience,
                                             verbose=True, mode="max")
         callbacks.append(early_stop_callback)
@@ -224,7 +224,7 @@ class PrintLossCallback(pl.Callback):
 
     def on_epoch_end(self, trainer, pl_module):
         metrics = trainer.callback_metrics
-        print(f"Epoch: {trainer.current_epoch}, "
+        logger.info(f"Epoch: {trainer.current_epoch}, "
               f"Train Loss: {metrics['train_loss']:.4f}"
               f"Validation Loss: {metrics['val_loss']:.4f}")
 
@@ -278,7 +278,7 @@ def train_image_reconstruction_model(target_model_class, lightning_log_dir, data
 
     # Check whether pretrained model exists. If yes, load it and skip training
     if has_checkpoint and isfile(pretrained_filename):
-        print("Found pretrained model, loading...")
+        logger.info("Found pretrained model, loading...")
 
         target_model = target_model.load_from_checkpoint(pretrained_filename)
         # target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
@@ -287,7 +287,7 @@ def train_image_reconstruction_model(target_model_class, lightning_log_dir, data
         trainer.fit(target_model, data_generators["train"], data_generators["valid"])
 
         checkpoint_path = trainer.checkpoint_callback.best_model_path
-        print('Loading model from the best path: ', checkpoint_path)
+        logger.info('Loading model from the best path: ', checkpoint_path)
         target_model = pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params)
 
     # Test best model on validation and test set
