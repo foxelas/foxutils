@@ -297,9 +297,26 @@ def mkdir_if_not_exist(target_path):
         makedirs(target_path)
 
 
+def find_files_by_extension(filepath, target_extension, ascending=True):
+    file_list = listdir(filepath)
+    file_list = [x for x in file_list if target_extension in x]
+    file_list.sort(reverse=not ascending)
+    return file_list
+
 #########################################################
 
 def flatten(l):
     return [item for sublist in l for item in sublist]
+
+#########################################################
+import logging
+
+def set_logger(logger):
+    logging_level = settings['RUN']['logging']
+    if logging_level == 'INFO':
+        logger.setLevel(logging.INFO)
+    elif logging_level == 'DEBUG':
+        logger.setLevel(logging.DEBUG)
+    return logger
 
 #########################################################

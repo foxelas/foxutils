@@ -19,10 +19,12 @@ The latest version is in branch 'v1'.
 
 ## Installation:
 Install locally at a virtual environment with:
-<br>
+
+```
 $ python -m pip install -e . 
-<br>
-<br>
-To cleanup the egg files: 
-<br>
-$ python setup.py clean      
+```
+To cleanup the egg files:
+
+```
+$ python setup.py clean     
+```

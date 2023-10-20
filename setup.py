@@ -4,8 +4,7 @@ import os
 import shutil
 from cgi import log
 from distutils.cmd import Command
-from setuptools import setup, find_packages
-
+from distutils.core import setup
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -35,29 +34,31 @@ class CleanCommand(Command):
 
 
 
-setup(name='foxutils',
-      version='1.0',
-      description='Foxelas utils for basic AI projects',
-      author='github:foxelas',
-      author_email='foxelas@outlook.com',
-      url='https://github.com/foxelas/foxutils',
-      packages=find_packages(include=['foxutils', 'foxutils.*']),
-      classifiers=[
-                    'Development Status :: 0 - Dev',
-                    'Intended Audience :: Developers',
-                    'Topic :: Software Development :: Build Tools',
-                    'License :: OSI Approved :: MIT License',
-                    'Programming Language :: Python :: 3.7',
-                    'Programming Language :: Python :: 3.8',
-                    'Programming Language :: Python :: 3.9',
-                ],
-      project_urls={
-                #'Documentation': 'https://packaging.python.org/tutorials/distributing-packages/',
-                #'Funding': 'https://donate.pypi.org',
-                #'Say Thanks!': 'http://saythanks.io/to/example',
-                'Source': 'https://github.com/foxelas/foxutils',
-      },
-      cmdclass={
-          'clean': CleanCommand,
-      },
-     )
+setup(
+    name='foxutils',
+    version='1.0',
+    packages=['utils', 'utils.lightning_models', 'gradio', 'streams', 'feature_extractors'],
+    url='https://github.com/foxelas/foxutils',
+    license='',
+    author='github:foxelas',
+    author_email='foxelas@outlook.com',
+    description='Foxelas utils for basic AI projects',
+    classifiers=[
+        'Development Status :: 0 - Dev',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Build Tools',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+    ],
+    project_urls={
+        # 'Documentation': 'https://packaging.python.org/tutorials/distributing-packages/',
+        # 'Funding': 'https://donate.pypi.org',
+        # 'Say Thanks!': 'http://saythanks.io/to/example',
+        'Source': 'https://github.com/foxelas/foxutils',
+    },
+    cmdclass={
+        'clean': CleanCommand,
+    },
+)
