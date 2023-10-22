@@ -364,4 +364,4 @@ def augment_image_dataset_by_class(df, target_column, target_classes, num_per_cl
 
 
 def get_label_and_prob_string(label, prob):
-    return f'{label} ({prob:.2f})'
+    return f'{label} ({prob*100:.2f}%)'

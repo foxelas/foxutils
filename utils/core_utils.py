@@ -49,15 +49,20 @@ settings = read_config()
 ###########################################################
 import logging
 
-def set_logger(logger_):
+def set_logging_level(rank=-1):
     logging_level = settings['RUN']['logging']
     if logging_level == 'INFO':
+        logging.basicConfig(level=logging.INFO)
         logger_.setLevel(logging.INFO)
     elif logging_level == 'DEBUG':
-        logger_.setLevel(logging.DEBUG)
-    return logger_
+        logging.basicConfig(level=logging.DEBUG)
 
-logger = set_logger(logging.getLogger(__name__))
+    #logging.basicConfig(
+    #    format="%(message)s",
+    #    level=logging.INFO if rank in [-1, 0] else logging.WARN)
+
+logger = logging.getLogger(__name__)
+set_logging_level()
 
 ###########################################################
 
