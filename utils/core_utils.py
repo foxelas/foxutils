@@ -53,7 +53,6 @@ def set_logging_level(rank=-1):
     logging_level = settings['RUN']['logging']
     if logging_level == 'INFO':
         logging.basicConfig(level=logging.INFO)
-        logger_.setLevel(logging.INFO)
     elif logging_level == 'DEBUG':
         logging.basicConfig(level=logging.DEBUG)
 

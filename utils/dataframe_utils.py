@@ -16,6 +16,7 @@ def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column=
                     [df[col].interpolate(method=x, fill_value='extrapolate', inplace=True) for col in interp_cols]
                 else:
                     [df[col].interpolate(method=x, inplace=True) for col in interp_cols]
+
     if dropna:
         df.dropna(inplace=True)
 
