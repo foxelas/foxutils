@@ -170,3 +170,6 @@ temp_files/*
 
 */config.ini
 config.ini
+.streamlit/*
+.streamlit/secrets.toml
+.streamlit/secrets.toml
