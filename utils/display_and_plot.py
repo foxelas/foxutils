@@ -131,28 +131,31 @@ def plot_coords_on_map(streetmap_file, df, label_column='ID', crs='epsg:4326'):
     # plt.legend(prop={'size':15})
 
 
-def plot_markers_on_map(center_coords, df, label_column='ID'):
+def plot_markers_on_map(center_coords=None, df=None, m=None, label_column='ID', color='blue'):
 
     import folium
     from folium import plugins
 
-    m = folium.Map(location=center_coords)
+    if m is None:
+        if center_coords is None and df is None:
+            m = folium.Map()
+        else:
+            if center_coords is None:
+                center_coords = [df.iloc[0]["Latitude"], df.iloc[0]["Longitude"]]
+            m = folium.Map(location=center_coords)
 
     long = df['Longitude'].values
     lat = df['Latitude'].values
     labels = df[label_column].values
 
-    for (x,y, z) in zip(lat, long, labels):
+    for (x, y, z) in zip(lat, long, labels):
         folium.Marker(
             location=[x,y],
             popup=(label_column + ': ' + str(z)),  # pop-up label for the marker
-            icon=folium.Icon()
+            icon=folium.Icon(color=color)
         ).add_to(m)
 
     return m
-
-
-
 
 
 def display_first_frames_from_h264(filedir, filename):
