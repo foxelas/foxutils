@@ -1,20 +1,12 @@
-import matplotlib.pyplot as plt
-
-import matplotlib.dates as mdates
-from sklearn.metrics import ConfusionMatrixDisplay
-
-import av
-import cv2
 import numpy as np
-from PIL import Image
-
-
 from os.path import join as pathjoin
-
+import matplotlib.pyplot as plt
 # matplotlib.use('Qt5Agg')
 
 
 def plot_histogram(df, target_column, category_dict=None, plot_title='', print_texts=False):
+    import matplotlib.pyplot as plt
+
     if print_texts:
         print(f"\nNumber of entries: {len(df)}")
         print(f"Unique categories:\n {np.unique(df[target_column].dropna().values)}")
@@ -36,6 +28,8 @@ def plot_histogram(df, target_column, category_dict=None, plot_title='', print_t
         print(hist)
 
 def print_timeseries(timestamps, values, plot_title):
+    import matplotlib.dates as mdates
+
     fig, ax = plt.subplots()
     ax.plot(timestamps, values)
     ax.set_xlabel("time points")
@@ -50,6 +44,8 @@ def print_timeseries(timestamps, values, plot_title):
 
 
 def print_subplots_for_btc_data(data_df, plot_title):
+    import matplotlib.dates as mdates
+
     rates = data_df['rate']
     timestamps = data_df['timestamp']
     open_values = data_df['current_open']
@@ -86,6 +82,8 @@ def print_subplots_for_btc_data(data_df, plot_title):
 
 
 def plot_confusion_matrix(confusion_matrix, model_name):
+    from sklearn.metrics import ConfusionMatrixDisplay
+
     cm_display = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=[False, True])
     cm_display.plot()
     plt.title(model_name)
@@ -158,6 +156,10 @@ def plot_markers_on_map(center_coords, df, label_column='ID'):
 
 
 def display_first_frames_from_h264(filedir, filename):
+    from PIL import Image
+    import cv2
+    import av
+
     if not '.h264' in filename:
         filename = filename + ".h264"
 
