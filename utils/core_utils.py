@@ -5,6 +5,7 @@ import json
 import re
 import tarfile
 import time
+import logging
 from datetime import datetime
 from os import getcwd, sep
 from os import listdir, remove, makedirs
@@ -49,7 +50,6 @@ settings = read_config()
 
 
 def set_logging_level(rank=-1):
-    import logging
 
     logging_level = settings['RUN']['logging']
     if logging_level == 'INFO':
