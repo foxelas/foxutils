@@ -14,7 +14,6 @@ from os.path import normpath, dirname
 from pathlib import Path
 
 import requests
-import torch
 from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 ###########################################################
@@ -49,6 +48,7 @@ settings = read_config()
 ###########################################################
 import logging
 
+
 def set_logging_level(rank=-1):
     logging_level = settings['RUN']['logging']
     if logging_level == 'INFO':
@@ -56,24 +56,33 @@ def set_logging_level(rank=-1):
     elif logging_level == 'DEBUG':
         logging.basicConfig(level=logging.DEBUG)
 
-    #logging.basicConfig(
+    # logging.basicConfig(
     #    format="%(message)s",
     #    level=logging.INFO if rank in [-1, 0] else logging.WARN)
+
 
 logger = logging.getLogger(__name__)
 set_logging_level()
 
+
 ###########################################################
 
 def get_device():
-    if 'device' in settings['RUN'].keys():
-        device_ = settings['RUN']['device']
-    else:
-        device_ = "cuda" if torch.cuda.is_available() else "cpu"
+    import importlib.util
+    package_name = 'torch'
+    if importlib.util.find_spec(package_name) is None:
+        logging.info(package_name + " is not installed")
 
-    if __name__ == '__main__':
-        logging.info(f'Running on {device_}')
-    return device_
+    else:
+        import torch
+        if 'device' in settings['RUN'].keys():
+            device_ = settings['RUN']['device']
+        else:
+            device_ = "cuda" if torch.cuda.is_available() else "cpu"
+
+        if __name__ == '__main__':
+            logging.info(f'Running on {device_}')
+        return device_
 
 
 device = get_device()
@@ -321,9 +330,8 @@ def find_files_by_extension(filepath, target_extension, ascending=True):
     file_list.sort(reverse=not ascending)
     return file_list
 
+
 #########################################################
 
 def flatten(l):
     return [item for sublist in l for item in sublist]
-
-
