@@ -51,11 +51,13 @@ settings = read_config()
 
 def set_logging_level(rank=-1):
 
-    logging_level = settings['RUN']['logging']
-    if logging_level == 'INFO':
+    logging_level = settings["RUN"]["logging"]
+    if logging_level == "INFO":
         logging.basicConfig(level=logging.INFO)
-    elif logging_level == 'DEBUG':
+    elif logging_level == "DEBUG":
         logging.basicConfig(level=logging.DEBUG)
+    elif logging_level == "WARN":
+        logging.basicConfig(level=logging.WARN)
 
     # logging.basicConfig(
     #    format="%(message)s",
