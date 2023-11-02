@@ -184,7 +184,7 @@ def train_predictive_model(target_model_class, lightning_log_dir, data_generator
     target_model = target_model_class(**model_params)
 
     lr_logger = LearningRateMonitor("epoch")
-    logger = TensorBoardLogger(lightning_log_dir)
+    tb_logger = TensorBoardLogger(lightning_log_dir)
 
     callbacks = [lr_logger,
                  PrintLossCallback(every_n_epochs=5),
@@ -204,7 +204,7 @@ def train_predictive_model(target_model_class, lightning_log_dir, data_generator
         devices=1,
         enable_model_summary=True,
         callbacks=callbacks,
-        logger=logger)
+        logger=tb_logger)
 
     trainer.fit(
         target_model,
