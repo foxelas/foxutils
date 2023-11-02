@@ -257,7 +257,7 @@ def train_image_reconstruction_model(target_model_class, lightning_log_dir, data
     target_model = target_model_class(**model_params)
 
     lr_logger = LearningRateMonitor("epoch")
-    logger = TensorBoardLogger(lightning_log_dir)
+    tb_logger = TensorBoardLogger(lightning_log_dir)
     early_stop_callback = EarlyStopping(monitor="val_mse_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
 
     # Create a PyTorch Lightning trainer with the generation callback
@@ -271,7 +271,7 @@ def train_image_reconstruction_model(target_model_class, lightning_log_dir, data
                    early_stop_callback,
                    ModelCheckpoint(monitor='val_acc', save_top_k=1, save_weights_only=False, mode='max'),
                    GenerateCallbackForImageReconstruction(callback_data, every_n_epochs=1)],
-        logger=logger)
+        logger=tb_logger)
 
     trainer.logger._log_graph = True  # If True, we plot the computation graph in tensorboard
     trainer.logger._default_hp_metric = None  # Optional logging argument that we don't need
