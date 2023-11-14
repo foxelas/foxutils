@@ -4,8 +4,7 @@ from os.path import join as pathjoin
 
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
+
 # PyTorch
 import torch
 # Torchvision
@@ -18,6 +17,7 @@ from torch import Tensor
 from torch import nn
 
 from .core_utils import SEED, models_dir, logger
+from .display_and_plot import plot_confusion_matrix
 
 
 #################################################################################
@@ -110,13 +110,7 @@ def get_sgd_optimizer(self):
 
 
 def get_conf_matrix_fig(cm, class_mapping=None):
-    df_cm = pd.DataFrame(cm)
-    if class_mapping:
-        inv_map = {v: k for k, v in class_mapping.items()}
-        df_cm.rename(columns=inv_map, index=inv_map, inplace=True)
-
-    plt.figure(figsize=(10, 7))
-    fig_ = sns.heatmap(df_cm, annot=True, cmap='Spectral', fmt='d').get_figure()
+    fig_ = plot_confusion_matrix(cm, package='lightning', class_names=class_mapping)
     plt.close(fig_)
     return fig_
 

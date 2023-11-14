@@ -1,6 +1,8 @@
 import numpy as np
 from os.path import join as pathjoin
 import matplotlib.pyplot as plt
+
+
 # matplotlib.use('Qt5Agg')
 
 
@@ -26,6 +28,7 @@ def plot_histogram(df, target_column, category_dict=None, plot_title='', print_t
 
     if print_texts:
         print(hist)
+
 
 def print_timeseries(timestamps, values, plot_title):
     import matplotlib.dates as mdates
@@ -81,13 +84,48 @@ def print_subplots_for_btc_data(data_df, plot_title):
     plt.show()
 
 
-def plot_confusion_matrix(confusion_matrix, model_name):
-    from sklearn.metrics import ConfusionMatrixDisplay
+def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class_names=None):
+    if package == "sklearn":
+        from sklearn.metrics import ConfusionMatrixDisplay
 
-    cm_display = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=[False, True])
-    cm_display.plot()
-    plt.title(model_name)
+        params = dict(confusion_matrix=confusion_matrix)
+        if class_names is not None:
+            params.update(display_labels=class_names)
+
+        cm_display = ConfusionMatrixDisplay(**params)
+        fig_ = cm_display.plot()
+
+    if package == "mlxtend":
+        from mlxtend.plotting import plot_confusion_matrix
+
+        params = dict(conf_mat=confusion_matrix,
+                      colorbar=True,
+                      show_absolute=True,
+                      show_normed=True)
+        if class_names is not None:
+            params.update(class_names=class_names)
+
+        fig_, ax = plot_confusion_matrix(**params)
+
+    if package == "lightning":
+        import seaborn as sns
+        import pandas as pd
+
+        df_cm = pd.DataFrame(confusion_matrix)
+        if class_names:
+            if not isinstance(class_names, dict):
+                class_names = {k: i for i, k in enumerate(class_names)}
+            inv_map = {v: k for k, v in class_names.items()}
+            df_cm.rename(columns=inv_map, index=inv_map, inplace=True)
+
+        plt.figure(figsize=(10, 7))
+        fig_ = sns.heatmap(df_cm, annot=True, cmap="Spectral", fmt="d").get_figure()
+
+    if title:
+        plt.title(title)
+
     plt.show()
+    return fig_
 
 
 def plot_value_per_epoch(train_vals, test_vals, target_value, plot_title="", legend_names=None):
@@ -95,11 +133,11 @@ def plot_value_per_epoch(train_vals, test_vals, target_value, plot_title="", leg
     ax.plot(train_vals)
     ax.plot(test_vals)
     plt.ylabel(target_value)
-    plt.xlabel('Epoch')
+    plt.xlabel("Epoch")
     if legend_names is None:
-        plt.legend(['train', 'valid'], loc='upper left')
+        plt.legend(["train", "valid"], loc="upper left")
     else:
-        plt.legend(legend_names, loc='upper left')
+        plt.legend(legend_names, loc="upper left")
 
     ax.title.set_text(plot_title)
     plt.show()
@@ -113,26 +151,25 @@ def plot_loss_per_epoch(train_vals, test_vals, plot_title="Loss per Epoch", lege
     plot_value_per_epoch(train_vals, test_vals, "Loss", plot_title, legend_names)
 
 
-def plot_coords_on_map(streetmap_file, df, label_column='ID', crs='epsg:4326'):
+def plot_coords_on_map(streetmap_file, df, label_column="ID", crs="epsg:4326"):
     import geopandas as gpd
     from shapely.geometry import Point
 
     street_map = gpd.read_file(streetmap_file)
-    long = df['Longitude'].values
-    lat = df['Latitude'].values
+    long = df["Longitude"].values
+    lat = df["Latitude"].values
     geometry = [Point(xy) for xy in zip(long, lat)]
     geo_df = gpd.GeoDataFrame(df, geometry=geometry)
     geo_df.crs = crs
 
     fig, ax = plt.subplots(figsize=(15, 15))
-    street_map.plot(ax=ax, alpha=0.4, color='grey')
-    geo_df.plot(ax=ax, markersize=20, color='blue', marker='o')
-    geo_df.apply(lambda x: ax.annotate(x[label_column], xy=x.loc['geometry'].coords[0]), axis=1)
+    street_map.plot(ax=ax, alpha=0.4, color="grey")
+    geo_df.plot(ax=ax, markersize=20, color="blue", marker="o")
+    geo_df.apply(lambda x: ax.annotate(x[label_column], xy=x.loc["geometry"].coords[0]), axis=1)
     # plt.legend(prop={'size':15})
 
 
 def plot_markers_on_map(center_coords=None, df=None, m=None, label_column='ID', color='blue'):
-
     import folium
     from folium import plugins
 
@@ -144,14 +181,14 @@ def plot_markers_on_map(center_coords=None, df=None, m=None, label_column='ID', 
                 center_coords = [df.iloc[0]["Latitude"], df.iloc[0]["Longitude"]]
             m = folium.Map(location=center_coords)
 
-    long = df['Longitude'].values
-    lat = df['Latitude'].values
+    long = df["Longitude"].values
+    lat = df["Latitude"].values
     labels = df[label_column].values
 
     for (x, y, z) in zip(lat, long, labels):
         folium.Marker(
-            location=[x,y],
-            popup=(label_column + ': ' + str(z)),  # pop-up label for the marker
+            location=[x, y],
+            popup=(label_column + ": " + str(z)),  # pop-up label for the marker
             icon=folium.Icon(color=color)
         ).add_to(m)
 
@@ -163,7 +200,7 @@ def display_first_frames_from_h264(filedir, filename):
     import cv2
     import av
 
-    if not '.h264' in filename:
+    if not (".h264" in filename):
         filename = filename + ".h264"
 
     file = pathjoin(filedir, filename)
@@ -180,5 +217,3 @@ def display_first_frames_from_h264(filedir, filename):
         img = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
         im_pil = Image.fromarray(img)
         im_pil.show()
-
-

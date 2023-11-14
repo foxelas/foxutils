@@ -71,6 +71,9 @@ set_logging_level()
 ###########################################################
 
 def get_device():
+    import os
+    os.environ["NUMEXPR_MAX_THREADS"] = "8"
+
     import importlib.util
     package_name = 'torch'
     if importlib.util.find_spec(package_name) is None:

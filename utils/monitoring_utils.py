@@ -1,22 +1,42 @@
 from sys import getsizeof
 
-import torch
 import pandas as pd
-
-from .core_utils import device
 
 
 ###########################################################
-# Memory
+# GPU
 
 def show_gpu_settings():
-    print("Torch version:", torch.__version__)
-    print("CUDA version:", torch.version.cuda)
+    import torch
+
+    print("\nCheck Torch version:", torch.__version__)
     print("GPU availability:", torch.cuda.is_available())
-    print("Number of GPU devices:", torch.cuda.device_count())
-    print("Name of current GPU:", torch.cuda.get_device_name(0))
+
+    # setting device on GPU if available, else CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
+    print("CUDA version:", torch.version.cuda)
+
+    # Additional Info when using cuda
+    if device.type == "cuda":
+        print("Number of GPU devices:", torch.cuda.device_count())
+        print("Name of current GPU:", torch.cuda.get_device_name(0))
+        print("Memory Usage:")
+        print("Allocated:", round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), "GB")
+        print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), "GB")
 
 
+def test_gpu(values=["torch", "tensorflow"]):
+    if "torch" in values:
+        show_gpu_settings()
+
+    if "tensorflow" in values:
+        import tensorflow as tf
+        print(f"\nCheck tensorflow version: {tf.__version__}")
+        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+###########################################################
+# Memory
 def obj_size_fmt(num):
     if num < 10 ** 3:
         return "{:.2f}{}".format(num, "B")
