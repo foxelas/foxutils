@@ -22,3 +22,23 @@ def write_image(full_filepath, project_path, target_image, target_folder=''):
     folder_path = pathjoin(folder, full_filepath.split(sep)[-1])
     core_utils.mkdir_if_not_exist(folder_path)
     cv2.imwrite(folder_path, target_image)
+
+
+def check_read_image(img_path, delete_files=False):
+    # Remove irregular images
+    from torchvision.io import read_image
+    import os
+    from os import stat
+
+    try:
+        is_fine = (".jpg" in img_path) and (stat(img_path).st_size > 500)
+        if is_fine:
+            img = read_image(img_path).squeeze()
+    except:
+        is_fine = False
+
+    if not is_fine and delete_files:
+        print(f"Removing: {img_path}")
+        os.remove(img_path)
+
+    return is_fine
