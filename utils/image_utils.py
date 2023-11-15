@@ -32,7 +32,7 @@ def check_read_image(img_path, delete_files=False):
 
     try:
         is_fine = (".jpg" in img_path) and (stat(img_path).st_size > 500)
-        if is_fine:
+        if is_fine and delete_files:
             img = read_image(img_path).squeeze()
     except:
         is_fine = False
