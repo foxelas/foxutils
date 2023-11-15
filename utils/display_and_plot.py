@@ -84,7 +84,7 @@ def print_subplots_for_btc_data(data_df, plot_title):
     plt.show()
 
 
-def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class_names=None):
+def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class_names=None, show_plot=True):
     if package == "sklearn":
         from sklearn.metrics import ConfusionMatrixDisplay
 
@@ -95,7 +95,7 @@ def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class
         cm_display = ConfusionMatrixDisplay(**params)
         fig_ = cm_display.plot()
 
-    if package == "mlxtend":
+    elif package == "mlxtend":
         from mlxtend.plotting import plot_confusion_matrix
 
         params = dict(conf_mat=confusion_matrix,
@@ -107,7 +107,7 @@ def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class
 
         fig_, ax = plot_confusion_matrix(**params)
 
-    if package == "lightning":
+    elif package == "lightning":
         import seaborn as sns
         import pandas as pd
 
@@ -118,13 +118,18 @@ def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class
             inv_map = {v: k for k, v in class_names.items()}
             df_cm.rename(columns=inv_map, index=inv_map, inplace=True)
 
-        plt.figure(figsize=(10, 7))
         fig_ = sns.heatmap(df_cm, annot=True, cmap="Spectral", fmt="d").get_figure()
+
+    else:
+        raise ValueError("Value should be one of sklearn, lightning or mlxtend.")
 
     if title:
         plt.title(title)
 
-    plt.show()
+    if show_plot:
+        plt.figure(figsize=(10, 7))
+        plt.show()
+
     return fig_
 
 

@@ -110,7 +110,7 @@ def get_sgd_optimizer(self):
 
 
 def get_conf_matrix_fig(cm, class_mapping=None):
-    fig_ = plot_confusion_matrix(cm, package='lightning', class_names=class_mapping)
+    fig_ = plot_confusion_matrix(cm, package='lightning', class_names=class_mapping, show_plot=False)
     plt.close(fig_)
     return fig_
 
