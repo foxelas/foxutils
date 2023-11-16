@@ -14,9 +14,6 @@ from os.path import join as pathjoin
 from os.path import normpath, dirname
 from pathlib import Path
 
-import requests
-from urllib3.exceptions import MaxRetryError, NewConnectionError
-
 ###########################################################
 
 SEED = 42
@@ -214,6 +211,9 @@ def delete_files_by_extension(target_folder, target_extension):
 # IMG files
 
 def get_request(link, **kwargs):
+    import requests
+    from urllib3.exceptions import MaxRetryError, NewConnectionError
+
     success = False
     r = None
     try:
