@@ -84,7 +84,9 @@ def print_subplots_for_btc_data(data_df, plot_title):
     plt.show()
 
 
-def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class_names=None, show_plot=True):
+def plot_confusion_matrix(confusion_matrix, title=None,
+                          package="sklearn", class_names=None,
+                          show_plot=True, **params):
     if package == "sklearn":
         from sklearn.metrics import ConfusionMatrixDisplay
 
@@ -98,14 +100,16 @@ def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class
     elif package == "mlxtend":
         from mlxtend.plotting import plot_confusion_matrix
 
-        params = dict(conf_mat=confusion_matrix,
-                      colorbar=True,
-                      show_absolute=True,
-                      show_normed=True)
+        if params is None:
+            params = dict(
+                          colorbar=True,
+                          show_absolute=True,
+                          show_normed=True,
+                          )
         if class_names is not None:
             params.update(class_names=class_names)
 
-        fig_, ax = plot_confusion_matrix(**params)
+        fig_, ax = plot_confusion_matrix(conf_mat=confusion_matrix, **params)
 
     elif package == "lightning":
         import seaborn as sns
@@ -127,7 +131,6 @@ def plot_confusion_matrix(confusion_matrix, title=None, package="sklearn", class
         plt.title(title)
 
     if show_plot:
-        plt.figure(figsize=(10, 7))
         plt.show()
 
     return fig_
