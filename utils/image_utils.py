@@ -15,6 +15,7 @@ def read_image_to_tensor(filename, dataset_dir, im_height=None, im_width=None):
     image /= 255.0
     return image
 
+
 def write_image(full_filepath, project_path, target_image, target_folder=''):
     import cv2
 
@@ -42,3 +43,12 @@ def check_read_image(img_path, delete_files=False):
         os.remove(img_path)
 
     return is_fine
+
+
+def read_open_cv(image_path):
+    import cv2
+    img = cv2.imread(image_path)
+    if img is not None:
+        return img
+    else:
+        raise FileNotFoundError(f"Image not found: {image_path}")
