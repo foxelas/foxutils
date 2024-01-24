@@ -7,7 +7,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly",
+          "https://www.googleapis.com/auth/drive"]
 
 
 def fetch_first_ten_files():
@@ -68,7 +69,7 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
 
-def authenticate_google_drive():
+def authenticate_google_drive(): # authorization for 1 hour only
     gauth = GoogleAuth(settings_file="config_files/pydrive_settings.yaml")
     gauth.LocalWebserverAuth()
     drive = GoogleDrive(gauth)
