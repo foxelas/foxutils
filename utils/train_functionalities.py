@@ -274,7 +274,8 @@ def scale_data(data_df, train_size=None):
     return data_df, scaler
 
 
-def make_scale_train_val_test(data_df, val_percentage=0.3, test_percentage=0.05):
+def make_scale_train_val_test(data_df, val_percentage=0.3, test_percentage=0.05, scaler=None):
+
     train_df, test_df = train_test_split(data_df, test_size=test_percentage, random_state=SEED, shuffle=False)
     train_df, val_df = train_test_split(train_df, test_size=val_percentage, random_state=SEED, shuffle=False)
 
@@ -282,7 +283,9 @@ def make_scale_train_val_test(data_df, val_percentage=0.3, test_percentage=0.05)
     logger.info(f'Val length: {len(val_df)}')
     logger.info(f'Test length: {len(test_df)}')
 
-    scaler = MinMaxScaler()
+    if scaler is None:
+        scaler = MinMaxScaler()
+
     scaler, train_df = apply_scaling(train_df, scaler, has_fit=True)
     _, val_df = apply_scaling(val_df, scaler, has_fit=False)
     _, test_df = apply_scaling(test_df, scaler, has_fit=False)
