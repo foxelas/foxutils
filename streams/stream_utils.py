@@ -35,10 +35,11 @@ class LoadStreams:  # multiple IP or RTSP cameras
         self.sources = [clean_str(x) for x in sources]  # clean source names for later
         for i, s in enumerate(sources):
             # Start the thread to read frames from the video stream
-            print(f'{i + 1}/{n}: {s}... ', end='')
+            print(f"{i + 1}/{n}: {s}... ", end="")
             url = eval(s) if s.isnumeric() else s
-            if 'youtube.com/' in str(url) or 'youtu.be/' in str(url):  # if source is YouTube video
+            if "youtube.com/" in str(url) or "youtu.be/" in str(url):  # if source is YouTube video
                 if USE_PAFY:
+                    check_requirements(("pafy", "youtube_dl"))
                     import pafy
                     url = pafy.new(url).getbest(preftype="mp4").url
                 else:
@@ -46,7 +47,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
                     url = yt.streams.filter(file_extension="mp4", res=720).first().url
 
             cap = cv2.VideoCapture(url)
-            assert cap.isOpened(), f'Failed to open {s}'
+            assert cap.isOpened(), f"Failed to open {s}"
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             if custom_fps is not None:
@@ -56,10 +57,10 @@ class LoadStreams:  # multiple IP or RTSP cameras
 
             _, self.imgs[i] = cap.read()  # guarantee first frame
             thread = Thread(target=self.update, args=([i, cap]), daemon=True)
-            print(f' success ({w}x{h} at {self.fps:.2f} FPS).')
+            print(f" success ({w}x{h} at {self.fps:.2f} FPS).")
             thread.start()
 
-        print('')  # newline
+        print("")  # newline
 
     def update(self, index, cap):
         # Read next stream frame in a daemon thread
@@ -81,7 +82,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
 
         cap.release()
         cv2.destroyAllWindows()
-        print(f'Failed to retrieve frame from stream. Terminating...')
+        print(f"Failed to retrieve frame from stream. Terminating...")
         self.terminated = True
 
     def __iter__(self):
@@ -91,7 +92,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
     def __next__(self):
         self.count += 1
         img0 = self.imgs.copy()
-        if cv2.waitKey(1) == ord('q'):  # q to quit
+        if cv2.waitKey(1) == ord("q"):  # q to quit
             cv2.destroyAllWindows()
             raise StopIteration
 
