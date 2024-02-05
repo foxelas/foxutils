@@ -20,7 +20,7 @@ def clean_str(s):
     return re.sub(pattern="[|@#!¡·$€%&()=?¿^*;:,¨´><+]", repl="_", string=s)
 
 class LoadStreams:  # multiple IP or RTSP cameras
-    def __init__(self, sources='streams.txt', custom_fps=None):
+    def __init__(self, sources='streams.txt', custom_fps=None, use_oauth=False, allow_oauth_cache=False):
         self.mode = 'stream'
         self.terminated = False
 
@@ -43,7 +43,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
                     import pafy
                     url = pafy.new(url).getbest(preftype="mp4").url
                 else:
-                    yt = YouTube(url, use_oauth=True, allow_oauth_cache=True)
+                    yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=allow_oauth_cache)
                     url = yt.streams.filter(file_extension="mp4", res=720).first().url
 
             cap = cv2.VideoCapture(url)
