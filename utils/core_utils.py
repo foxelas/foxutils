@@ -49,8 +49,8 @@ settings = read_config()
 def set_logging_level(rank=-1):
 
     logfile = "log.txt"
-    if os.path.exists(logfile):
-        os.remove(logfile)
+    if pathexists(logfile):
+        remove(logfile)
     logging_level = settings['RUN']['logging']
 
     log_level = logging.INFO if rank in [-1, 0] else logging.WARN
