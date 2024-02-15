@@ -1,23 +1,25 @@
-import warnings
-from os.path import isfile, splitext
-from os.path import join as pathjoin
-
-import lightning.pytorch as pl
-import matplotlib.pyplot as plt
-
-# PyTorch
-import torch
-# Torchvision
-import torchvision
-# Kornia
-from kornia import augmentation
-from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
-from lightning.pytorch.loggers import TensorBoardLogger
-from torch import Tensor
-from torch import nn
 
 from .core_utils import SEED, models_dir, logger
 from .display_and_plot import plot_confusion_matrix
+import warnings
+import os
+from os.path import isfile, splitext
+from os.path import join as pathjoin
+os.environ["COMET_DISABLE_AUTO_LOGGING"] = "1"
+
+# PyTorch
+import torch
+from torch import Tensor, nn
+# Torchvision
+import torchvision
+
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.loggers import TensorBoardLogger
+import matplotlib.pyplot as plt
+
+# Kornia
+from kornia import augmentation
 
 
 #################################################################################
