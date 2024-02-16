@@ -204,6 +204,10 @@ def convert_datetime_to_string(date_value):
     date_value = datetime.strftime(date_value, "%Y-%m-%dT%H:%M:%SZ")
     return date_value
 
+def convert_datetime_to_fully_connected_string(date_value):
+    date_value = datetime.strftime(date_value, "%Y%m%d%H%M%S")
+    return date_value
+
 
 def get_datetime_from_unix_timestamp(timestamp):
     date_value = datetime.fromtimestamp(timestamp / 1000)
