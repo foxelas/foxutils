@@ -45,16 +45,14 @@ settings = read_config()
 
 ###########################################################
 
-def get_logging_level_value(rank=-1):
-    logging_level = settings['RUN']['logging']
-
+def get_logging_level_value(logging_level_str, rank=-1):
     log_level = logging.INFO if rank in [-1, 0] else logging.WARN
 
-    if logging_level == 'INFO':
+    if logging_level_str == 'INFO':
         log_level =logging.INFO
-    elif logging_level == 'DEBUG':
+    elif logging_level_str == 'DEBUG':
         log_level =logging.DEBUG
-    elif logging_level == "WARN":
+    elif logging_level_str == "WARN":
         log_level = logging.WARN
 
 
@@ -67,11 +65,8 @@ def set_logging_level(rank=-1):
     if pathexists(logfile):
         remove(logfile)
 
-    logging.basicConfig(filename=logfile, filemode='a', level=get_logging_level_value(rank=rank))
-
-    # logging.basicConfig(
-    #    format="%(message)s",
-    #    level=logging.INFO if rank in [-1, 0] else logging.WARN)
+    logging_level_str = settings['RUN']['logging_level']
+    logging.basicConfig(filename=logfile, filemode='a', level=get_logging_level_value(logging_level_str, rank=rank))
 
 
 #instead of "logging.getLogger" use "from utils.core_utils import get_logger"
@@ -80,9 +75,10 @@ def get_logger(name):
 
     txt_log = bool(eval(settings['RUN']['txt_log']))
     if txt_log:
+        logging_level_str = settings['RUN']['txt_logging_level']
         # Create stdout handler for logging to the console
         stdout_handler = logging.StreamHandler()
-        stdout_handler.setLevel(logging.INFO)
+        stdout_handler.setLevel(get_logging_level_value(logging_level_str))
         stdout_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
 
         if not logger_.hasHandlers() or len(logger_.handlers) == 0:
