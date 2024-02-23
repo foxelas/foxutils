@@ -45,12 +45,7 @@ settings = read_config()
 
 ###########################################################
 
-
-def set_logging_level(rank=-1):
-
-    logfile = "log.txt"
-    if pathexists(logfile):
-        remove(logfile)
+def get_logging_level_value(rank=-1):
     logging_level = settings['RUN']['logging']
 
     log_level = logging.INFO if rank in [-1, 0] else logging.WARN
@@ -62,7 +57,17 @@ def set_logging_level(rank=-1):
     elif logging_level == "WARN":
         log_level = logging.WARN
 
-    logging.basicConfig(filename=logfile, filemode='a', level=log_level)
+
+    return log_level
+
+
+def set_logging_level(rank=-1):
+
+    logfile = "log.txt"
+    if pathexists(logfile):
+        remove(logfile)
+
+    logging.basicConfig(filename=logfile, filemode='a', level=get_logging_level_value(rank=rank))
 
     # logging.basicConfig(
     #    format="%(message)s",
@@ -73,14 +78,15 @@ def set_logging_level(rank=-1):
 def get_logger(name):
     logger_ = logging.getLogger(name)
 
-    # Create stdout handler for logging to the console
-    stdout_handler = logging.StreamHandler()
-    stdout_handler.setLevel(logging.INFO)
-    stdout_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+    txt_log = bool(eval(settings['RUN']['txt_log']))
+    if txt_log:
+        # Create stdout handler for logging to the console
+        stdout_handler = logging.StreamHandler()
+        stdout_handler.setLevel(logging.INFO)
+        stdout_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
 
-    if not logger_.hasHandlers() or len(logger_.handlers) == 0:
-        logger_.addHandler(stdout_handler)
-
+        if not logger_.hasHandlers() or len(logger_.handlers) == 0:
+            logger_.addHandler(stdout_handler)
     return logger_
 
 
