@@ -43,39 +43,41 @@ def read_config():
 
 settings = read_config()
 
+
 ###########################################################
 
 def get_logging_level_value(logging_level_str, rank=-1):
     log_level = logging.INFO if rank in [-1, 0] else logging.WARN
 
     if logging_level_str == 'INFO':
-        log_level =logging.INFO
+        log_level = logging.INFO
     elif logging_level_str == 'DEBUG':
-        log_level =logging.DEBUG
+        log_level = logging.DEBUG
     elif logging_level_str == "WARN":
         log_level = logging.WARN
-
 
     return log_level
 
 
 def set_logging_level(rank=-1):
+    txt_log = bool(eval(settings['RUN']['txt_log']))
+    if txt_log:
+        logfile = "log.txt"
+        if pathexists(logfile):
+            remove(logfile)
+        logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG)
+    else:
+        logging_level_str = settings['RUN']['logging_level']
+        logging.basicConfig(level=get_logging_level_value(logging_level_str, rank=rank))
 
-    logfile = "log.txt"
-    if pathexists(logfile):
-        remove(logfile)
 
-    logging_level_str = settings['RUN']['logging_level']
-    logging.basicConfig(filename=logfile, filemode='a', level=get_logging_level_value(logging_level_str, rank=rank))
-
-
-#instead of "logging.getLogger" use "from utils.core_utils import get_logger"
+# instead of "logging.getLogger" use "from utils.core_utils import get_logger"
 def get_logger(name):
     logger_ = logging.getLogger(name)
 
     txt_log = bool(eval(settings['RUN']['txt_log']))
     if txt_log:
-        logging_level_str = settings['RUN']['txt_logging_level']
+        logging_level_str = settings['RUN']['logging_level']
         # Create stdout handler for logging to the console
         stdout_handler = logging.StreamHandler()
         stdout_handler.setLevel(get_logging_level_value(logging_level_str))
@@ -205,6 +207,7 @@ def convert_date_to_string(date_value):
 def convert_datetime_to_string(date_value):
     date_value = datetime.strftime(date_value, "%Y-%m-%dT%H:%M:%SZ")
     return date_value
+
 
 def convert_datetime_to_fully_connected_string(date_value):
     date_value = datetime.strftime(date_value, "%Y%m%d%H%M%S")
