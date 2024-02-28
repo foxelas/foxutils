@@ -189,11 +189,11 @@ def plot_markers_on_map(center_coords=None, df=None, m=None, label_column="ID", 
                 center_coords = [df.iloc[0]["lat"], df.iloc[0]["lng"]]
             m = folium.Map(location=center_coords)
 
-    long = df["lat"].values
-    lat = df["lng"].values
+    lng = df["lng"].values
+    lat = df["lat"].values
     labels = df[label_column].values
 
-    for (x, y, z) in zip(lat, long, labels):
+    for (x, y, z) in zip(lat, lng, labels):
         folium.Marker(
             location=[x, y],
             popup=(label_column + ": " + str(z)),  # pop-up label for the marker
