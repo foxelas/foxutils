@@ -164,8 +164,8 @@ def plot_coords_on_map(streetmap_file, df, label_column="ID", crs="epsg:4326"):
     from shapely.geometry import Point
 
     street_map = gpd.read_file(streetmap_file)
-    long = df["Longitude"].values
-    lat = df["Latitude"].values
+    long = df["lng"].values
+    lat = df["lat"].values
     geometry = [Point(xy) for xy in zip(long, lat)]
     geo_df = gpd.GeoDataFrame(df, geometry=geometry)
     geo_df.crs = crs
@@ -177,7 +177,7 @@ def plot_coords_on_map(streetmap_file, df, label_column="ID", crs="epsg:4326"):
     # plt.legend(prop={'size':15})
 
 
-def plot_markers_on_map(center_coords=None, df=None, m=None, label_column='ID', color='blue'):
+def plot_markers_on_map(center_coords=None, df=None, m=None, label_column="ID", color="blue"):
     import folium
     from folium import plugins
 
@@ -186,11 +186,11 @@ def plot_markers_on_map(center_coords=None, df=None, m=None, label_column='ID', 
             m = folium.Map()
         else:
             if center_coords is None:
-                center_coords = [df.iloc[0]["Latitude"], df.iloc[0]["Longitude"]]
+                center_coords = [df.iloc[0]["lat"], df.iloc[0]["lng"]]
             m = folium.Map(location=center_coords)
 
-    long = df["Longitude"].values
-    lat = df["Latitude"].values
+    long = df["lat"].values
+    lat = df["lng"].values
     labels = df[label_column].values
 
     for (x, y, z) in zip(lat, long, labels):
