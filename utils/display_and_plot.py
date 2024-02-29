@@ -164,9 +164,9 @@ def plot_coords_on_map(streetmap_file, df, label_column="ID", crs="epsg:4326"):
     from shapely.geometry import Point
 
     street_map = gpd.read_file(streetmap_file)
-    long = df["lng"].values
+    lng = df["lng"].values
     lat = df["lat"].values
-    geometry = [Point(xy) for xy in zip(long, lat)]
+    geometry = [Point(xy) for xy in zip(lat, lng)]
     geo_df = gpd.GeoDataFrame(df, geometry=geometry)
     geo_df.crs = crs
 
