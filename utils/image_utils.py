@@ -30,6 +30,7 @@ def check_read_image(img_path, delete_files=False):
     from torchvision.io import read_image
     import os
     from os import stat
+    img = None
 
     try:
         is_fine = (".jpg" in img_path) and (stat(img_path).st_size > 500)
@@ -42,7 +43,7 @@ def check_read_image(img_path, delete_files=False):
         print(f"Removing: {img_path}")
         os.remove(img_path)
 
-    return is_fine
+    return is_fine, img
 
 
 def read_open_cv(image_path):
