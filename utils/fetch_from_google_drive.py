@@ -65,11 +65,13 @@ def fetch_h5_file_from_drive(url, savename="dataset.hd5"):
                 hd5.write(chunk)
 
 
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
 
 
 def authenticate_google_drive(): # authorization for 1 hour only
+
+    from pydrive.auth import GoogleAuth
+    from pydrive.drive import GoogleDrive
+
     gauth = GoogleAuth(settings_file="config_files/pydrive_settings.yaml")
     gauth.LocalWebserverAuth()
     drive = GoogleDrive(gauth)
