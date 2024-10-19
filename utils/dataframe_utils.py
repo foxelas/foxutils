@@ -1,12 +1,17 @@
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+
+
 ##########################################################
 
 def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column='datetime', dropna=True):
     dfs = [x.set_index([index_column]) for x in dfs]
     df = pd.concat(dfs, join=method)
     df.sort_index(inplace=True)
+
+    df_index = df.index
+    df.reset_index(drop=True, inplace=True)
 
     if use_interpolation is not None:
         for i, x in enumerate(use_interpolation):
@@ -16,6 +21,7 @@ def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column=
                     [df[col].interpolate(method=x, fill_value='extrapolate', inplace=True) for col in interp_cols]
                 else:
                     [df[col].interpolate(method=x, inplace=True) for col in interp_cols]
+    df.set_index(df_index, inplace=True)
 
     if dropna:
         df.dropna(inplace=True)
@@ -51,6 +57,7 @@ def check_for_missing_dates(df, mode="fixed_intervals", interval_limit=None):
 
     return missing_ids
 
+
 def split_data_frame_at_missing_data(df, mode=None, missing_ids=None, interval_limit=None):
     if missing_ids is None:
         missing_ids = check_for_missing_dates(df, mode, interval_limit)
@@ -61,19 +68,21 @@ def split_data_frame_at_missing_data(df, mode=None, missing_ids=None, interval_l
     start_id = 0
     for key in class_df_dict.keys():
         end_id = missing_ids[key] + 1
-        #print(f'start {start_id} end {end_id}')
+        # print(f'start {start_id} end {end_id}')
         class_df_dict[key] = df.iloc[start_id:end_id]
         start_id = end_id
 
-    class_df_dict[key+1] = df.iloc[start_id:]
+    class_df_dict[key + 1] = df.iloc[start_id:]
 
-    #print(f'Sum of dfs {np.array([len(class_df_dict[x]) for x in class_df_dict.keys()]).sum()}')
-    #print(f'Original df {len(df)}')
+    # print(f'Sum of dfs {np.array([len(class_df_dict[x]) for x in class_df_dict.keys()]).sum()}')
+    # print(f'Original df {len(df)}')
     return class_df_dict, missing_ids
 
 
-def encode_categorical_values(df, target_column):
-    categ_dict = {x: i for i, x in enumerate(np.unique(df[target_column]))}
+def encode_categorical_values(df, target_column, categ_dict=None):
+    if categ_dict is None:
+        categ_dict = {x: i for i, x in enumerate(np.unique(df[target_column]))}
+
     inv_categ_dict = {v: k for k, v in categ_dict.items()}
     df[target_column] = df[target_column].apply(lambda x: categ_dict[x])
     return categ_dict, inv_categ_dict, df
