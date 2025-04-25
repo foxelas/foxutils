@@ -242,7 +242,7 @@ class GenerateCallbackForImageReconstruction(pl.Callback):
                 reconst_imgs = pl_module(input_imgs)
                 pl_module.train()
             # Plot and add to tensorboard
-            imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
+            imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0)
             grid = torchvision.utils.make_grid(imgs, nrow=2, normalize=True, range=(-1, 1))
             trainer.logger.experiment.add_image("Reconstructions", grid, global_step=trainer.global_step)
 

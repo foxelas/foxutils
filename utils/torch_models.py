@@ -201,7 +201,7 @@ def visualize_reconstructions(model, input_imgs):
     reconst_imgs, reconstruction_errors = reconstruct_images(model, input_imgs)
 
     # Plotting
-    imgs = torch.stack([reconst_imgs], dim=1).flatten(0, 1)
+    imgs = torch.stack([reconst_imgs], dim=1).flatten(0)
     grid = torchvision.utils.make_grid(imgs, normalize=True, range=(-1, 1))
     grid = grid.permute(1, 2, 0)
     plt.figure(figsize=(15, 5))

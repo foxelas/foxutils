@@ -371,5 +371,5 @@ def find_files_by_extension(filepath, target_extension, ascending=True):
 
 #########################################################
 
-def flatten(l):
-    return [item for sublist in l for item in sublist]
+def flatten(list_object):
+    return [item for sublist in list_object for item in sublist]
