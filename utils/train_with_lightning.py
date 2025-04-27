@@ -63,27 +63,59 @@ def get_lightning_checkpoint_file(lightning_log_dir, checkpoint_version, checkpo
     return pretrained_filename
 
 
-def pl_load_trained_model(target_model_class, weight_path, **model_params):
-    weight_path_file, weight_path_ext = splitext(weight_path)
-    assert weight_path_ext == '.pts', True
-    logger.info(f'Model is loaded from location: {weight_path}')
-    target_model = target_model_class(**model_params)
-    target_model.load_state_dict(torch.load(weight_path))
-    target_model.eval()
-    return target_model
+def pl_load_trained_model(target_model_class, weight_path, map_location=None, **model_params):
+    try:
+        weight_path_file, weight_path_ext = splitext(weight_path)
+
+        if weight_path_ext != '.pts':
+            raise ValueError(f"Unexpected file extension '{weight_path_ext}'. Expected '.pts'.")
+
+        logger.info(f'Model is being loaded from location: {weight_path}')
+
+        target_model = target_model_class(**model_params)
+
+        state_dict = torch.load(weight_path, map_location=map_location)
+        target_model.load_state_dict(state_dict)
+
+        target_model.eval()
+
+        return target_model
+
+    except ValueError as e:
+        logger.error(f"ValueError: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"An error occurred while loading the model: {e}")
+        raise
 
 
 # PyTorch Lightning >= 2.0
 def pl_load_trained_model_from_checkpoint(target_model_class, checkpoint_path, **model_params):
-    checkpoint_path_file, checkpoint_path_ext = splitext(checkpoint_path)
-    assert checkpoint_path_ext == '.ckpt', True
-    logger.info(f'Model is loaded from checkpoint: {checkpoint_path}')
-    target_model = target_model_class.load_from_checkpoint(checkpoint_path=checkpoint_path, **model_params)
-    checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
-    hyperparams = checkpoint["hyper_parameters"]
-    logger.info(f'Loaded hyperparameters: {hyperparams}')
-    target_model.eval()
-    return target_model
+    try:
+        checkpoint_path_file, checkpoint_path_ext = splitext(checkpoint_path)
+
+        if checkpoint_path_ext != '.ckpt':
+            raise ValueError(f"Unexpected file extension '{checkpoint_path_ext}'. Expected '.ckpt'.")
+
+        logger.info(f'Model is loaded from checkpoint: {checkpoint_path}')
+
+        target_model = target_model_class.load_from_checkpoint(checkpoint_path=checkpoint_path, **model_params)
+
+        checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
+        hyperparams = checkpoint.get("hyper_parameters", {})
+        logger.info(f'Loaded hyperparameters: {hyperparams}')
+
+        target_model.eval()
+
+        return target_model
+
+    except ValueError as e:
+        logger.error(f"ValueError: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"An error occurred while loading the model from checkpoint: {e}")
+        raise
+
 
 
 #################################################################################
