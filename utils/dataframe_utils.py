@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+import logging
+logger = logging.getLogger("dataframe_utils")
 
 
 ##########################################################
@@ -27,7 +29,7 @@ def merge_data_frames(dfs, method='outer', use_interpolation=None, index_column=
         df.dropna(inplace=True)
 
     if len(df) == 0:
-        print(
+        logger.debug(
             "The requested dataframe is empty! Check if you have used Categorical values, might need to encode them.\n")
 
     return df
